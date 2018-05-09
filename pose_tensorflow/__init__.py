@@ -39,7 +39,8 @@ def resize_image(input_image):
 
 
 def process_single_image(input_image):
-    cfg = config.load_config("../demo/pose_cfg.yaml")
+    d = os.path.dirname(__file__)
+    cfg = config.load_config(os.path.join(d, "pose_cfg.yaml"))
 
     # Read image from file
     image = imread(input_image, pilmode='RGB')

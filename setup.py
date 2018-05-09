@@ -17,6 +17,9 @@ setuptools.setup(
         'Topic :: Scientific/Engineering :: Image Recognition',
         'Topic :: Scientific/Engineering :: Visualization',
     ],
+    package_data={
+        PACKAGE_NAME: ['pose_cfg.yaml'],
+    },
     keywords='pose estimation tensorflow',
     author='Jonathan Chang',
     author_email='jonathan@physera.com',
