@@ -5,7 +5,7 @@ VERSION = '0.0.1'
 
 setuptools.setup(
     name=PACKAGE_NAME,
-    packages=[PACKAGE_NAME],
+    packages=[PACKAGE_NAME, PACKAGE_NAME + '.nnet'],
     version=VERSION,
     description='Estimate human poses in images',
     classifiers=[

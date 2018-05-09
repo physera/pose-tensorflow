@@ -6,7 +6,7 @@ from imageio import imread, imwrite
 import numpy as np
 from PIL import Image, ExifTags
 
-from .config import load_config
+from . import config
 from pose_tensorflow.nnet import predict
 
 
@@ -39,7 +39,7 @@ def resize_image(input_image):
 
 
 def process_single_image(input_image):
-    cfg = load_config("../demo/pose_cfg.yaml")
+    cfg = config.load_config("../demo/pose_cfg.yaml")
 
     # Read image from file
     image = imread(input_image, pilmode='RGB')
