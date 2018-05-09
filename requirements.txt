@@ -1,0 +1,7 @@
+easydict==1.7
+imageio==2.3.0
+numpy==1.14.3
+Pillow==5.1.0
+PyYAML==3.12
+scipy==1.1.0
+tensorflow==1.8.0
