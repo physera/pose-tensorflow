@@ -7,7 +7,12 @@ import numpy as np
 from PIL import Image, ExifTags
 
 from . import config
-from pose_tensorflow.nnet import predict
+from pose_tensorflow.nnet.predict import (
+    initialize_session,
+    setup_inputs_outputs,
+    argmax_pose_predict,
+    extract_cnn_output,
+)
 
 
 def data_to_input(data):
@@ -38,31 +43,32 @@ def resize_image(input_image):
     return new_image
 
 
-def process_single_image(input_image):
-    d = os.path.dirname(__file__)
-    cfg = config.load_config(os.path.join(d, "pose_cfg.yaml"))
+# Load and setup CNN part detector
+__dirname = os.path.dirname(__file__)
+__cfg = config.load_config(os.path.join(__dirname, "pose_cfg.yaml"))
+__inputs, __outputs = setup_inputs_outputs(__cfg)
+__sess = initialize_session(__cfg)
 
+
+def process_single_image(input_image):
     # Read image from file
     image = imread(input_image, pilmode='RGB')
     image_dims = image.shape
 
     image_batch = data_to_input(image)
 
-    # Load and setup CNN part detector
-    sess, inputs, outputs = predict.setup_pose_prediction(cfg)
-
     # Compute prediction with the CNN
-    outputs_np = sess.run(outputs, feed_dict={inputs: image_batch})
-    scmap, locref, _ = predict.extract_cnn_output(outputs_np, cfg)
+    outputs_np = __sess.run(__outputs, feed_dict={__inputs: image_batch})
+    scmap, locref, _ = extract_cnn_output(outputs_np, __cfg)
 
     # Extract maximum scoring location from the heatmap, assume 1 person
-    pose = predict.argmax_pose_predict(scmap, locref, cfg.stride)
+    pose = argmax_pose_predict(scmap, locref, __cfg.stride)
 
     # Jsonify the results
     result = []
-    for pidx, name in enumerate(cfg.all_joints_names):
-        name = cfg.all_joints_names[pidx]
-        parts = cfg.all_joints[pidx]
+    for pidx, name in enumerate(__cfg.all_joints_names):
+        name = __cfg.all_joints_names[pidx]
+        parts = __cfg.all_joints[pidx]
         for side, part in enumerate(parts):
             result.append({
                 "name": name,
