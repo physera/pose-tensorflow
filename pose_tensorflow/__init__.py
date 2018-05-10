@@ -25,7 +25,7 @@ def resize_image(input_image):
     for orientation in ExifTags.TAGS.keys():
         if ExifTags.TAGS[orientation] == 'Orientation':
             break
-    exif = im._getexif()
+    exif = im._getexif() if hasattr(im, '_getexif') else None
     if exif:
         exif = dict(exif.items())
         orientation = exif[orientation]
