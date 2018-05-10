@@ -1,4 +1,4 @@
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 
 def find_coords(results, name, side):
@@ -10,6 +10,7 @@ def find_coords(results, name, side):
 
 def draw_annotations(image, annotations):
     width, height = image.size
+    im = Image.open(image)
     draw = ImageDraw.Draw(im)
 
     for r in annotations:
@@ -48,3 +49,4 @@ def draw_annotations(image, annotations):
         )
 
     del draw
+    return im

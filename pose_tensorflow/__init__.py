@@ -13,6 +13,7 @@ from pose_tensorflow.nnet.predict import (
     argmax_pose_predict,
     extract_cnn_output,
 )
+from .draw import draw_annotations
 
 
 def data_to_input(data):
