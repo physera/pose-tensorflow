@@ -9,8 +9,8 @@ def find_coords(results, name, side):
 
 
 def draw_annotations(image, annotations):
-    width, height = image.size
     im = Image.open(image)
+    width, height = im.size
     draw = ImageDraw.Draw(im)
 
     for r in annotations:
