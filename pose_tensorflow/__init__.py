@@ -29,7 +29,8 @@ def resize_image(input_image):
     exif = im._getexif() if hasattr(im, '_getexif') else None
     if exif:
         exif = dict(exif.items())
-        orientation = exif[orientation]
+        # Be careful in case exif doesn't have orientation.
+        orientation = exif.get(orientation)
         if orientation == 3:
             im = im.transpose(Image.ROTATE_180)
         elif orientation == 6:
