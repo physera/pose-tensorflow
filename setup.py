@@ -31,7 +31,7 @@ setuptools.setup(
         'Pillow==5.1.0',
         'PyYAML==3.12',
         'scipy==1.1.0',
-        'tensorflow==1.8.'
+        'tensorflow==1.8.0'
     ],
     license='LGPLv3',
     zip_safe=False,
