@@ -6,10 +6,9 @@ from imageio import imread, imwrite
 import numpy as np
 from PIL import Image, ExifTags
 
-from . import config
+from .util import config
 from pose_tensorflow.nnet.predict import (
-    initialize_session,
-    setup_inputs_outputs,
+    setup_pose_prediction,
     argmax_pose_predict,
     extract_cnn_output,
 )
@@ -44,15 +43,20 @@ def resize_image(input_image):
     im.save(new_image)
     return new_image
 
-
 # Load and setup CNN part detector
-__dirname = os.path.dirname(__file__)
-__cfg = config.load_config(os.path.join(__dirname, "pose_cfg.yaml"))
-__inputs, __outputs = setup_inputs_outputs(__cfg)
-__sess = initialize_session(__cfg)
+__cfg, __sess, __inputs, __outputs = None, None, None, None
+
+def setup():
+    global __cfg, __sess, __inputs, __outputs
+    __dirname = os.path.dirname(__file__)
+    __cfg = config.load_config(os.path.join(__dirname, "pose_cfg.yaml"))
+    __sess, __inputs, __outputs = setup_pose_prediction(__cfg)
 
 
 def process_single_image(input_image):
+    if __cfg is None:
+        setup()
+
     # Read image from file
     image = imread(input_image, pilmode='RGB')
     image_dims = image.shape

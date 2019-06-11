@@ -5,7 +5,11 @@ import tensorflow as tf
 from .net_factory import pose_net
 
 
-def initialize_session(cfg):
+def setup_pose_prediction(cfg):
+    inputs = tf.placeholder(tf.float32, shape=[cfg.batch_size, None, None, 3])
+
+    outputs = pose_net(cfg).test(inputs)
+
     restorer = tf.train.Saver()
 
     sess = tf.Session()
@@ -15,21 +19,6 @@ def initialize_session(cfg):
 
     # Restore variables from disk.
     restorer.restore(sess, cfg.init_weights)
-    return sess
-
-
-def setup_inputs_outputs(cfg):
-    inputs = tf.placeholder(tf.float32, shape=[cfg.batch_size, None, None, 3])
-    outputs = pose_net(cfg).test(inputs)
-    return inputs, outputs
-
-
-def setup_pose_prediction(cfg):
-    inputs = tf.placeholder(tf.float32, shape=[cfg.batch_size, None, None, 3])
-
-    outputs = pose_net(cfg).test(inputs)
-
-    initialize_session(cfg)
 
     return sess, inputs, outputs
 
