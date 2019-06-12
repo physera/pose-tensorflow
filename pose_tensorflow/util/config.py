@@ -5,10 +5,10 @@ import logging
 import yaml
 from easydict import EasyDict as edict
 
-import util.default_config
+from . import default_config
 
 
-cfg = util.default_config.cfg
+cfg = default_config.cfg
 
 
 def _merge_a_into_b(a, b):
