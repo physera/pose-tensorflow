@@ -4555,6 +4555,11 @@ temp@0.8.3:
     os-tmpdir "^1.0.0"
     rimraf "~2.2.6"
 
+tflite-react-native@^0.0.4:
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/tflite-react-native/-/tflite-react-native-0.0.4.tgz#2a61fcfa81a29943365506a6fdb10d67b4d516ea"
+  integrity sha512-NJ0FnCQUvH/kXsTBrnXXQld0qv6fn7bikM3NbXCNgdKjjsKjAZQdprKVb0vchAaZaMZESH/B5jxL0nr1QzrOSA==
+
 throat@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/throat/-/throat-4.1.0.tgz#89037cbc92c56ab18926e6ba4cbb200e15672a6a"
