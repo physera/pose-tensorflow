@@ -135,6 +135,10 @@ android {
             }
         }
     }
+    // tflite-react-native
+    aaptOptions {
+        noCompress 'tflite'
+    }
 }
 
 dependencies {
