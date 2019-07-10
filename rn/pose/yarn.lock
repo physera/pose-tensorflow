@@ -4462,7 +4462,7 @@ promise@^7.1.1:
   dependencies:
     asap "~2.0.3"
 
-prop-types@^15.5.8, prop-types@^15.6.0, prop-types@^15.6.2:
+prop-types@^15.5.8, prop-types@^15.6.0, prop-types@^15.6.1, prop-types@^15.6.2:
   version "15.7.2"
   resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.7.2.tgz#52c41e75b8c87e72b9d9360e0206b99dcbffa6c5"
   integrity sha512-8QQikdH7//R2vurIJSutZ1smHYTcLpRWEOlHnzcWHmBYrOGUysKwSsrC89BCiFj3CbrfJ/nXFdJepOVrY1GCHQ==
@@ -4573,6 +4573,13 @@ react-is@^16.8.1:
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.8.6.tgz#5bbc1e2d29141c9fbdfed456343fe2bc430a6a16"
   integrity sha512-aUk3bHfZ2bRSVFFbbeVS4i+lNPZr3/WM5jT2J5omUVV1zzcs1nAaf3l51ctA5FFvCRbhrH0bdAsRRQddFJZPtA==
 
+react-native-image-overlay@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/react-native-image-overlay/-/react-native-image-overlay-0.1.2.tgz#9a8be747ae081140fb8125e1c0c66fc7b80fc3d1"
+  integrity sha512-0bM8Zc8/GZWvvbGccADPmw1onhE9ZVrq/brOSoNIoJU0Kp+8G7lJ2w5+7Us3wIVKHi6Syji/KNypS91svCH8gA==
+  dependencies:
+    prop-types "^15.6.1"
+
 react-native-image-picker@^0.28.1:
   version "0.28.1"
   resolved "https://registry.yarnpkg.com/react-native-image-picker/-/react-native-image-picker-0.28.1.tgz#1127460522e0c9741fc62f3d040271d298fb6a6e"
@@ -4587,6 +4594,11 @@ react-native-render-html@^4.1.2:
     events "^1.1.0"
     html-entities "^1.2.0"
     htmlparser2 "^3.10.1"
+
+react-native-svg@^9.5.1:
+  version "9.5.1"
+  resolved "https://registry.yarnpkg.com/react-native-svg/-/react-native-svg-9.5.1.tgz#eb21fa7eb5d71649620541e6549c6ed425d80240"
+  integrity sha512-cRGfomzG/5LEwuJ6ct3m5yccckeI9aj8BNYwDPVxOeJ84LuJuvk5OqcjlYNeEzOWmWiH+QrFXfpLH1ag04bUeQ==
 
 react-native-web@^0.11.4:
   version "0.11.5"
@@ -5454,10 +5466,9 @@ term-size@^1.2.0:
   dependencies:
     execa "^0.7.0"
 
-tflite-react-native@^0.0.4:
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/tflite-react-native/-/tflite-react-native-0.0.4.tgz#2a61fcfa81a29943365506a6fdb10d67b4d516ea"
-  integrity sha512-NJ0FnCQUvH/kXsTBrnXXQld0qv6fn7bikM3NbXCNgdKjjsKjAZQdprKVb0vchAaZaMZESH/B5jxL0nr1QzrOSA==
+tflite-react-native@shaqian/tflite-react-native:
+  version "0.0.5"
+  resolved "https://codeload.github.com/shaqian/tflite-react-native/tar.gz/8a88bdd79d7c88683c946cfab5ad875a2f775fc1"
 
 throat@^4.1.0:
   version "4.1.0"
