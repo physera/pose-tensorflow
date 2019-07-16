@@ -15,7 +15,7 @@
     "react-native-render-html": "^4.1.2",
     "react-native-svg": "^9.5.1",
     "react-native-web": "^0.11.4",
-    "tflite-react-native": "shaqian/tflite-react-native"
+    "tflite-react-native": "indigoviolet/tflite-react-native"
   },
   "devDependencies": {
     "@types/react": "^16.8.19",

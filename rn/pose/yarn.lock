@@ -5466,9 +5466,9 @@ term-size@^1.2.0:
   dependencies:
     execa "^0.7.0"
 
-tflite-react-native@shaqian/tflite-react-native:
+tflite-react-native@indigoviolet/tflite-react-native:
   version "0.0.5"
-  resolved "https://codeload.github.com/shaqian/tflite-react-native/tar.gz/8a88bdd79d7c88683c946cfab5ad875a2f775fc1"
+  resolved "https://codeload.github.com/indigoviolet/tflite-react-native/tar.gz/8a88bdd79d7c88683c946cfab5ad875a2f775fc1"
 
 throat@^4.1.0:
   version "4.1.0"

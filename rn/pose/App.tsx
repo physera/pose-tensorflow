@@ -28,7 +28,7 @@ type Props = {};
 type State = {
   msg: string | object | null,
   image: ImageT | null,
-  poses: [PoseT] | null,
+  poses: PoseT[] | null,
 };
 
 const reindexPoseByPart = (pose: PoseT): PoseT => {
