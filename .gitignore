@@ -10,3 +10,9 @@ dist/**
 models/tmp
 models/mpii/mpii-single-resnet*.*
 *.tflite
+
+.yalc
+.project
+.classpath
+.settings
+yalc.lock

@@ -6,32 +6,30 @@ import HTML from 'react-native-render-html';
 import Svg, { Circle, Line } from 'react-native-svg';
 import ImageOverlay from 'react-native-image-overlay';
 
+import {
+  decodeMultiplePoses,
+  scalePose,
+  Keypoint,
+  Pose as PoseT,
+} from '@tensorflow-models/posenet';
+import * as tf from '@tensorflow/tfjs-core';
+
 const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
 const labelsFile = '';
 
 let tflite = new Tflite();
 
-type Keypoint = {
-  x: number,
-  y: number,
-  part: string,
-  score: number,
-};
-type PoseT = {
-  score: number,
-  keypoints: {
-    [k: string]: Keypoint,
-  },
-};
-type ImageT = { path: string, width: number, height: number };
+type ImageT = { path: string; width: number; height: number };
 type Props = {};
 type State = {
-  msg: string | object | null,
-  image: ImageT | null,
-  poses: PoseT[] | null,
+  msg: string | object | null;
+  image: ImageT | null;
+  poses: PoseT[] | null;
 };
 
-const reindexPoseByPart = (pose: PoseT): PoseT => {
+const reindexPoseByPart = (
+  pose: PoseT
+): { score: number; keypoints: { [k: string]: Keypoint } } => {
   let reindexedKps = {};
   for (const kp of Object.values(pose.keypoints)) {
     reindexedKps[kp.part] = kp;
@@ -58,12 +56,10 @@ const Skeleton: [string, string, Side][] = [
   ['rightKnee', 'rightAnkle', 'Right'],
 ];
 
-const Pose: React.FunctionComponent<{ pose: PoseT, image: ImageT }> = ({ pose, image }) => {
-  pose = reindexPoseByPart(pose);
+const Pose: React.FunctionComponent<{ poseIn: PoseT; image: ImageT }> = ({ poseIn, image }) => {
+  const pose = reindexPoseByPart(poseIn);
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
-    return (
-      <Circle cx={kp.x * image.width} cy={kp.y * image.height} r="5" fill="pink" key={kp.part} />
-    );
+    return <Circle cx={kp.position.x} cy={kp.position.y} r="5" fill="pink" key={kp.part} />;
   });
   const lines = Skeleton.map(([from_part, to_part, side]) => {
     const from_kp = pose.keypoints[from_part];
@@ -82,10 +78,10 @@ const Pose: React.FunctionComponent<{ pose: PoseT, image: ImageT }> = ({ pose, i
     }
     return (
       <Line
-        x1={from_kp.x * image.width}
-        y1={from_kp.y * image.height}
-        x2={to_kp.x * image.width}
-        y2={to_kp.y * image.height}
+        x1={from_kp.position.x}
+        y1={from_kp.position.y}
+        x2={to_kp.position.x}
+        y2={to_kp.position.y}
         stroke={strokeColor}
         strokeWidth="2"
         key={`${from_part}-${to_part}`}
@@ -112,6 +108,31 @@ export default class App extends React.Component<Props, State> {
     tflite.loadModel({ model: modelFile, labels: labelsFile });
   }
 
+  handlePoseResponse = async res => {
+    const [scores, offsets, dispFwd, dispBwd] = res;
+    const [scoreTensor, offsetTensor, dispFwdTensor, dispBwdTensor] = await Promise.all([
+      (tf.tensor(scores).squeeze() as tf.Tensor3D).buffer(),
+      (tf.tensor(offsets).squeeze() as tf.Tensor3D).buffer(),
+      (tf.tensor(dispFwd).squeeze() as tf.Tensor3D).buffer(),
+      (tf.tensor(dispBwd).squeeze() as tf.Tensor3D).buffer(),
+    ]);
+    // decodeMultiplePoses works better than decodeSinglePose
+    const poses = await decodeMultiplePoses(
+      scoreTensor,
+      offsetTensor,
+      dispFwdTensor,
+      dispBwdTensor,
+      16, // outputStride, picked by default
+      1 // numPoses
+    );
+    const scaledPose = scalePose(
+      poses[0],
+      this.state.image.height / 337, // inputResolution that is picked by default
+      this.state.image.width / 337
+    );
+    this.setState({ poses: [scaledPose] });
+  };
+
   onSelectImage = () => {
     ImagePicker.launchImageLibrary({}, response => {
       if (response.didCancel) {
@@ -120,15 +141,28 @@ export default class App extends React.Component<Props, State> {
         this.log('Error');
       } else {
         var path = Platform.OS === 'ios' ? response.uri : 'file://' + response.path;
-        this.setState({ image: { path: path, width: response.width, height: response.height } });
-        tflite.runPoseNetOnImage(
+        this.setState({
+          image: { path: path, width: response.width, height: response.height },
+        });
+        // tflite.runPoseNetOnImage(
+        //   {
+        //     path,
+        //     threshold: 0.3,
+        //   },
+        //   (err, res) => {
+        //     if (err) this.log(err);
+        //     else this.setState({ poses: res });
+        //   }
+        // );
+        tflite.runModelOnImageMulti(
           {
             path,
-            threshold: 0.3,
           },
-          (err, res) => {
+          async (err, res) => {
             if (err) this.log(err);
-            else this.setState({ poses: res });
+            else {
+              await this.handlePoseResponse(res);
+            }
           }
         );
       }
@@ -152,7 +186,7 @@ export default class App extends React.Component<Props, State> {
                 source={{ uri: this.state.image.path }}
                 contentPosition="top">
                 {this.state.poses ? (
-                  <Pose pose={this.state.poses[0]} image={this.state.image} />
+                  <Pose poseIn={this.state.poses[0]} image={this.state.image} />
                 ) : null}
               </ImageOverlay>
             ) : null}
@@ -165,7 +199,9 @@ export default class App extends React.Component<Props, State> {
               <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
                 <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
               </View>
-            ) : null}
+            ) : (
+              <Text>No msg</Text>
+            )}
           </View>
         </View>
       </ScrollView>
