@@ -16,6 +16,7 @@
     "react": "16.8.6",
     "react-devtools": "^3.6.2",
     "react-native": "0.60.3",
+    "react-native-camera": "file:.yalc/react-native-camera",
     "react-native-image-overlay": "^0.1.2",
     "react-native-image-picker": "^1.0.1",
     "react-native-render-html": "^4.1.2",

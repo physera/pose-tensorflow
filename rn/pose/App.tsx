@@ -5,6 +5,8 @@ import ImagePicker from 'react-native-image-picker';
 import HTML from 'react-native-render-html';
 import Svg, { Circle, Line } from 'react-native-svg';
 import ImageOverlay from 'react-native-image-overlay';
+import { RNCamera } from 'react-native-camera';
+import FillToAspectRatio from './FillToAspectRatio';
 
 import {
   decodeMultiplePoses,
@@ -179,7 +181,22 @@ export default class App extends React.Component<Props, State> {
         <View style={styles.container}>
           <Text style={{ marginBottom: 25 }}>Pose demo</Text>
           <Button title="Select Image" onPress={this.onSelectImage} />
-          <View style={{ marginTop: 25 }}>
+          <View style={{ margin: 25 }}>
+            <View
+              style={{
+                height: 400,
+                width: 400,
+                backgroundColor: 'red',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Text>Camera</Text>
+              <View style={{ height: 300, width: 300 }}>
+                <FillToAspectRatio>
+                  <RNCamera style={{ flex: 1 }} type={RNCamera.Constants.Type.back} />
+                </FillToAspectRatio>
+              </View>
+            </View>
             {this.state.image ? (
               <ImageOverlay
                 height={this.state.image.height}
@@ -212,8 +229,8 @@ export default class App extends React.Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    flexDirection: 'column',
     backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'center',
   },
 });
