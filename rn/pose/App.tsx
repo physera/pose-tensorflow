@@ -1,12 +1,20 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, ScrollView, Platform, Button } from 'react-native';
-import Tflite from 'tflite-react-native';
-import ImagePicker from 'react-native-image-picker';
-import HTML from 'react-native-render-html';
-import Svg, { Circle, Line } from 'react-native-svg';
-import ImageOverlay from 'react-native-image-overlay';
-import { RNCamera } from 'react-native-camera';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Platform,
+  Button,
+  ImageBackground,
+  Dimensions,
+} from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
+import HTML from 'react-native-render-html';
+import ImagePicker from 'react-native-image-picker';
+import Svg, { Circle, Line } from 'react-native-svg';
+import Tflite from 'tflite-react-native';
+import { RNCamera } from 'react-native-camera';
 
 import {
   decodeMultiplePoses,
@@ -20,8 +28,8 @@ const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
 const labelsFile = '';
 
 let tflite = new Tflite();
-
-type ImageT = { path: string; width: number; height: number };
+type ImageDims = { width: number; height: number };
+type ImageT = { path: string } & ImageDims;
 type Props = {};
 type State = {
   msg: string | object | null;
@@ -58,7 +66,11 @@ const Skeleton: [string, string, Side][] = [
   ['rightKnee', 'rightAnkle', 'Right'],
 ];
 
-const Pose: React.FunctionComponent<{ poseIn: PoseT; image: ImageT }> = ({ poseIn, image }) => {
+const Pose: React.FunctionComponent<{
+  poseIn: PoseT;
+  scaledDims: ImageDims;
+  imageViewDims: ImageDims;
+}> = ({ poseIn, scaledDims, imageViewDims }) => {
   const pose = reindexPoseByPart(poseIn);
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
     return <Circle cx={kp.position.x} cy={kp.position.y} r="5" fill="pink" key={kp.part} />;
@@ -91,11 +103,43 @@ const Pose: React.FunctionComponent<{ poseIn: PoseT; image: ImageT }> = ({ poseI
     );
   });
 
+  // * Scaling considerations
+  //
+  // We are using ImageBackground with dimensions = getImageViewDims()
+  // with resizeMode=contain. This means that the Image will get
+  // scaled such that one dimension will be set to the size of the
+  // ImageBackground and the other will be scaled proportionally to
+  // maintain the right aspect ratio, and will be smaller than the
+  // corresponding ImageBackground dimension.
+  //
+  // These scaled dimensions are computed in getScaledImageDims().
+  //
+  // Now the Pose needs to get overlaid on this ImageBackground such
+  // that it actually sits on top of the Image.
+  //
+  // To do this, we position the Svg assuming that the scaled Image is
+  // centered in both dimensions in the ImageBackground (setting top,
+  // left based on this), and then set the Svg's dimensions to be the
+  // scaled image dimensions.
+  //
+  // We then set the viewBox of the Svg to also be the scaled image
+  // dimensions, and scale the pose to these dimensions as well.
+  //
+  // In theory the viewBox could be set to the original image
+  // dimensions without scaling the pose, but the size of the
+  // circle/lines will then be according to that scale and look tiny
+  // in some cases.
+  //
+  //
   return (
     <Svg
-      width="100%"
-      height="100%"
-      viewBox={`0 0 ${image.width} ${image.height}`}
+      style={{
+        top: (imageViewDims.height - scaledDims.height) / 2,
+        left: (imageViewDims.width - scaledDims.width) / 2,
+      }}
+      width={scaledDims.width}
+      height={scaledDims.height}
+      viewBox={`0 0 ${scaledDims.width} ${scaledDims.height}`}
       preserveAspectRatio="none">
       {points}
       {lines}
@@ -105,6 +149,7 @@ const Pose: React.FunctionComponent<{ poseIn: PoseT; image: ImageT }> = ({ poseI
 
 export default class App extends React.Component<Props, State> {
   state = { msg: null, image: null, poses: null };
+
   constructor(props: Props) {
     super(props);
     tflite.loadModel({ model: modelFile, labels: labelsFile });
@@ -124,15 +169,45 @@ export default class App extends React.Component<Props, State> {
       offsetTensor,
       dispFwdTensor,
       dispBwdTensor,
-      16, // outputStride, picked by default
+      16, // outputStride, picked by default. TODO: make configurable
       1 // numPoses
     );
+    const scaledDims = this.getScaledImageDims(this.getImageViewDims());
     const scaledPose = scalePose(
       poses[0],
-      this.state.image.height / 337, // inputResolution that is picked by default
-      this.state.image.width / 337
+      scaledDims.height / 337, // inputResolution that is picked by default. TODO: make configurable
+      scaledDims.width / 337
     );
     this.setState({ poses: [scaledPose] });
+  };
+
+  getImageViewDims = (): ImageDims => {
+    return {
+      height: 500,
+      width: Dimensions.get('window').width,
+    };
+  };
+
+  scale = (largerDim: number, viewDim: number, smallerDim: number): [number, number] => {
+    const scaledLargerDim = Math.min(largerDim, viewDim);
+    const scaledSmallerDim = (scaledLargerDim / largerDim) * smallerDim;
+    return [scaledLargerDim, scaledSmallerDim];
+  };
+
+  getScaledImageDims = (imageViewDims: ImageDims): ImageDims => {
+    const image = this.state.image;
+    const heightRatio = imageViewDims.height / image.height;
+    const widthRatio = imageViewDims.width / image.width;
+
+    let scaledHeight: number;
+    let scaledWidth: number;
+
+    if (heightRatio <= widthRatio) {
+      [scaledHeight, scaledWidth] = this.scale(image.height, imageViewDims.height, image.width);
+    } else {
+      [scaledWidth, scaledHeight] = this.scale(image.width, imageViewDims.width, image.height);
+    }
+    return { height: scaledHeight, width: scaledWidth };
   };
 
   onSelectImage = () => {
@@ -156,17 +231,12 @@ export default class App extends React.Component<Props, State> {
         //     else this.setState({ poses: res });
         //   }
         // );
-        tflite.runModelOnImageMulti(
-          {
-            path,
-          },
-          async (err, res) => {
-            if (err) this.log(err);
-            else {
-              await this.handlePoseResponse(res);
-            }
+        tflite.runModelOnImageMulti({ path }, async (err, res) => {
+          if (err) this.log(err);
+          else {
+            await this.handlePoseResponse(res);
           }
-        );
+        });
       }
     });
   };
@@ -176,49 +246,69 @@ export default class App extends React.Component<Props, State> {
   };
 
   render() {
+    const imageViewDims = this.getImageViewDims();
+
+    const poseDebug = this.state.poses ? (
+      <View style={{ margin: 20, borderWidth: 1, borderColor: 'red' }}>
+        <HTML html={`<pre>${JSON.stringify(this.state.poses, null, 2)}</pre>`} />
+      </View>
+    ) : null;
+
+    const camera = (
+      <View
+        style={{
+          height: 300,
+          margin: 25,
+          width: Dimensions.get('window').width,
+          backgroundColor: 'green',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <Text>Camera</Text>
+        <View style={{ height: 200, width: 200 }}>
+          <FillToAspectRatio>
+            <RNCamera style={{ flex: 1 }} type={RNCamera.Constants.Type.front} />
+          </FillToAspectRatio>
+        </View>
+      </View>
+    );
+
+    const poseImageOverlay = this.state.image ? (
+      <ImageBackground
+        source={{ uri: this.state.image.path }}
+        style={{
+          ...imageViewDims,
+        }}
+        resizeMode="contain"
+        resizeMethod="scale">
+        {this.state.poses ? (
+          <Pose
+            poseIn={this.state.poses[0]}
+            scaledDims={this.getScaledImageDims(imageViewDims)}
+            imageViewDims={imageViewDims}
+          />
+        ) : null}
+      </ImageBackground>
+    ) : null;
+
+    const debugMsg = this.state.msg ? (
+      <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
+        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
+      </View>
+    ) : (
+      <Text>No msg</Text>
+    );
+
     return (
       <ScrollView>
         <View style={styles.container}>
           <Text style={{ marginBottom: 25 }}>Pose demo</Text>
+          {camera}
           <Button title="Select Image" onPress={this.onSelectImage} />
           <View style={{ margin: 25 }}>
-            <View
-              style={{
-                height: 400,
-                width: 400,
-                backgroundColor: 'red',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <Text>Camera</Text>
-              <View style={{ height: 300, width: 300 }}>
-                <FillToAspectRatio>
-                  <RNCamera style={{ flex: 1 }} type={RNCamera.Constants.Type.back} />
-                </FillToAspectRatio>
-              </View>
-            </View>
-            {this.state.image ? (
-              <ImageOverlay
-                height={this.state.image.height}
-                source={{ uri: this.state.image.path }}
-                contentPosition="top">
-                {this.state.poses ? (
-                  <Pose poseIn={this.state.poses[0]} image={this.state.image} />
-                ) : null}
-              </ImageOverlay>
-            ) : null}
-            {this.state.poses ? (
-              <View style={{ margin: 20, borderWidth: 1, borderColor: 'red' }}>
-                <HTML html={`<pre>${JSON.stringify(this.state.poses, null, 2)}</pre>`} />
-              </View>
-            ) : null}
-            {this.state.msg ? (
-              <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
-                <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
-              </View>
-            ) : (
-              <Text>No msg</Text>
-            )}
+            {poseImageOverlay}
+            {poseDebug}
+            {debugMsg}
           </View>
         </View>
       </ScrollView>
