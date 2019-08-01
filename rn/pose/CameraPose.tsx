@@ -3,33 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
 import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
-import { decodeMultiplePoses, Pose as PoseT } from '@tensorflow-models/posenet';
-import * as tf from '@tensorflow/tfjs-core';
+import { Pose, decodePoses, scalePose, PoseT, Dims } from './Pose';
 
 const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
 
 type State = {
   msg: string | object | null;
   poses: PoseT[] | null;
-};
-
-const decodePoses = async res => {
-  const [scores, offsets, dispFwd, dispBwd] = res;
-  const [scoreTensor, offsetTensor, dispFwdTensor, dispBwdTensor] = await Promise.all([
-    (tf.tensor(scores).squeeze() as tf.Tensor3D).buffer(),
-    (tf.tensor(offsets).squeeze() as tf.Tensor3D).buffer(),
-    (tf.tensor(dispFwd).squeeze() as tf.Tensor3D).buffer(),
-    (tf.tensor(dispBwd).squeeze() as tf.Tensor3D).buffer(),
-  ]);
-  // decodeMultiplePoses works better than decodeSinglePose
-  return await decodeMultiplePoses(
-    scoreTensor,
-    offsetTensor,
-    dispFwdTensor,
-    dispBwdTensor,
-    16, // outputStride, picked by default. TODO: make configurable
-    1 // numPoses
-  );
 };
 
 const MODEL_IMAGE_MEAN = 127.5;
