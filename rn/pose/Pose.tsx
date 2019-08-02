@@ -1,3 +1,4 @@
+import * as React from 'react';
 import {
   decodeMultiplePoses,
   scalePose,
@@ -10,7 +11,7 @@ import Svg, { Circle, Line } from 'react-native-svg';
 
 export type Dims = { width: number; height: number };
 
-export { scalePose, PoseT };
+export { PoseT };
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -41,12 +42,74 @@ const Skeleton: [string, string, Side][] = [
   ['rightKnee', 'rightAnkle', 'Right'],
 ];
 
+const _scaleDims = (largerDim: number, viewDim: number, smallerDim: number): [number, number] => {
+  const scaledLargerDim = Math.min(largerDim, viewDim);
+  const scaledSmallerDim = (scaledLargerDim / largerDim) * smallerDim;
+  return [scaledLargerDim, scaledSmallerDim];
+};
+
+const getScaledImageDims = (imageDims: Dims, viewDims: Dims): Dims => {
+  // We are using ImageBackground with dimensions = getImageViewDims()
+  // with resizeMode=contain. This means that the Image will get
+  // scaled such that one dimension will be set to the size of the
+  // ImageBackground and the other will be scaled proportionally to
+  // maintain the right aspect ratio, and will be smaller than the
+  // corresponding ImageBackground dimension.
+  //
+  // These scaled dimensions are computed in getScaledImageDims().
+  const heightRatio = viewDims.height / imageDims.height;
+  const widthRatio = viewDims.width / imageDims.width;
+
+  let scaledHeight: number;
+  let scaledWidth: number;
+
+  if (heightRatio <= widthRatio) {
+    [scaledHeight, scaledWidth] = _scaleDims(imageDims.height, viewDims.height, imageDims.width);
+  } else {
+    [scaledWidth, scaledHeight] = _scaleDims(imageDims.width, viewDims.width, imageDims.height);
+  }
+  return { height: scaledHeight, width: scaledWidth };
+};
+
+// * Scaling considerations
+//
+// We are using ImageBackground with dimensions = getImageViewDims()
+// with resizeMode=contain. This means that the Image will get
+// scaled, these scaled dimensions are computed in
+// getScaledImageDims() - see for more detail.
+//
+// Now the Pose needs to get overlaid on this ImageBackground such
+// that it actually sits on top of the Image.
+//
+// To do this, we position the Svg assuming that the scaled Image is
+// centered in both dimensions in the ImageBackground (setting top,
+// left based on this), and then set the Svg's dimensions to be the
+// scaled image dimensions.
+//
+// We then set the viewBox of the Svg to also be the scaled image
+// dimensions, and scale the pose to these dimensions as well.
+//
+// (In theory the viewBox could be set to the original image
+// dimensions without scaling the pose, but the size of the
+// circle/lines will then be according to that scale and look tiny
+// in some cases.)
+//
+//
+
 export const Pose: React.FunctionComponent<{
   poseIn: PoseT;
-  scaledDims: Dims;
-  imageViewDims: Dims;
-}> = ({ poseIn, scaledDims, imageViewDims }) => {
-  const pose = reindexPoseByPart(poseIn);
+  imageDims: Dims; // the image for which pose is inferred
+  viewDims: Dims; // the ImageBackground view in which the image is placed, and scaled to
+  modelInputSize: number;
+}> = ({ poseIn, imageDims, viewDims, modelInputSize }) => {
+  const scaledImageDims = getScaledImageDims(imageDims, viewDims);
+  const scaledPose = scalePose(
+    poseIn,
+    scaledImageDims.height / modelInputSize,
+    scaledImageDims.width / modelInputSize
+  );
+
+  const pose = reindexPoseByPart(scaledPose);
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
     return <Circle cx={kp.position.x} cy={kp.position.y} r="5" fill="pink" key={kp.part} />;
   });
@@ -78,43 +141,18 @@ export const Pose: React.FunctionComponent<{
     );
   });
 
-  // * Scaling considerations
-  //
-  // We are using ImageBackground with dimensions = getImageViewDims()
-  // with resizeMode=contain. This means that the Image will get
-  // scaled such that one dimension will be set to the size of the
-  // ImageBackground and the other will be scaled proportionally to
-  // maintain the right aspect ratio, and will be smaller than the
-  // corresponding ImageBackground dimension.
-  //
-  // These scaled dimensions are computed in getScaledDims().
-  //
-  // Now the Pose needs to get overlaid on this ImageBackground such
-  // that it actually sits on top of the Image.
-  //
-  // To do this, we position the Svg assuming that the scaled Image is
-  // centered in both dimensions in the ImageBackground (setting top,
-  // left based on this), and then set the Svg's dimensions to be the
-  // scaled image dimensions.
-  //
-  // We then set the viewBox of the Svg to also be the scaled image
-  // dimensions, and scale the pose to these dimensions as well.
-  //
-  // In theory the viewBox could be set to the original image
-  // dimensions without scaling the pose, but the size of the
-  // circle/lines will then be according to that scale and look tiny
-  // in some cases.
-  //
-  //
   return (
     <Svg
       style={{
-        top: (imageViewDims.height - scaledDims.height) / 2,
-        left: (imageViewDims.width - scaledDims.width) / 2,
+        position: 'absolute',
+        top: (viewDims.height - scaledImageDims.height) / 2,
+        left: (viewDims.width - scaledImageDims.width) / 2,
+        borderColor: 'red',
+        borderWidth: 2,
       }}
-      width={scaledDims.width}
-      height={scaledDims.height}
-      viewBox={`0 0 ${scaledDims.width} ${scaledDims.height}`}
+      width={scaledImageDims.width}
+      height={scaledImageDims.height}
+      viewBox={`0 0 ${scaledImageDims.width} ${scaledImageDims.height}`}
       preserveAspectRatio="none">
       {points}
       {lines}

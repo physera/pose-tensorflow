@@ -12,7 +12,7 @@ import {
 import HTML from 'react-native-render-html';
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
-import { Pose, decodePoses, scalePose, PoseT, Dims } from './Pose';
+import { Pose, decodePoses, PoseT, Dims } from './Pose';
 
 const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
 const labelsFile = '';
@@ -26,27 +26,6 @@ type State = {
   poses: PoseT[] | null;
 };
 
-const _scaleDims = (largerDim: number, viewDim: number, smallerDim: number): [number, number] => {
-  const scaledLargerDim = Math.min(largerDim, viewDim);
-  const scaledSmallerDim = (scaledLargerDim / largerDim) * smallerDim;
-  return [scaledLargerDim, scaledSmallerDim];
-};
-
-const getScaledDims = (imageDims: Dims, viewDims: Dims): Dims => {
-  const heightRatio = viewDims.height / imageDims.height;
-  const widthRatio = viewDims.width / imageDims.width;
-
-  let scaledHeight: number;
-  let scaledWidth: number;
-
-  if (heightRatio <= widthRatio) {
-    [scaledHeight, scaledWidth] = _scaleDims(imageDims.height, viewDims.height, imageDims.width);
-  } else {
-    [scaledWidth, scaledHeight] = _scaleDims(imageDims.width, viewDims.width, imageDims.height);
-  }
-  return { height: scaledHeight, width: scaledWidth };
-};
-
 const MODEL_INPUT_SIZE = 337;
 
 export default class StaticImagePose extends React.Component<{}, State> {
@@ -58,21 +37,20 @@ export default class StaticImagePose extends React.Component<{}, State> {
   }
 
   getImageViewDims = (): Dims => {
+    // Setting these to %s is weird because the dims are passed
+    // on to the Image, and then they apply twice, once relative
+    // to the outer container, then relative to the
+    // ImageBackground container as well
+    const window = Dimensions.get('window');
     return {
-      height: 500,
-      width: Dimensions.get('window').width,
+      height: window.height * 0.8,
+      width: window.width,
     };
   };
 
-  handleImagePoseResponse = async (res, imageViewDims: Dims) => {
+  handleImagePoseResponse = async res => {
     const poses = await decodePoses(res);
-    const scaledDims = getScaledDims(this.state.image, imageViewDims);
-    const scaledPose = scalePose(
-      poses[0],
-      scaledDims.height / MODEL_INPUT_SIZE,
-      scaledDims.width / MODEL_INPUT_SIZE
-    );
-    this.setState({ poses: [scaledPose] });
+    this.setState({ poses: poses });
   };
 
   onSelectImage = () => {
@@ -99,7 +77,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
         tflite.runModelOnImageMulti({ path }, async (err, res) => {
           if (err) this.log(err);
           else {
-            await this.handleImagePoseResponse(res, this.getImageViewDims());
+            await this.handleImagePoseResponse(res);
           }
         });
       }
@@ -116,6 +94,12 @@ export default class StaticImagePose extends React.Component<{}, State> {
     this.setState({ poses: poses });
   };
 
+  getPosesToDisplay = (): PoseT[] | null => {
+    if (this.state.image && this.state.poses && this.state.poses.length) {
+      return this.state.poses;
+    }
+  };
+
   render() {
     const imageViewDims = this.getImageViewDims();
 
@@ -125,21 +109,27 @@ export default class StaticImagePose extends React.Component<{}, State> {
     //   </View>
     // ) : null;
 
-    const poseImageOverlay = this.state.image ? (
+    const posesToDisplay = this.getPosesToDisplay();
+    const poseOverlay = posesToDisplay ? (
+      <Pose
+        poseIn={posesToDisplay[0]}
+        imageDims={this.state.image}
+        viewDims={imageViewDims}
+        modelInputSize={MODEL_INPUT_SIZE}
+      />
+    ) : null;
+
+    const imageView = this.state.image ? (
       <ImageBackground
         source={{ uri: this.state.image.path }}
         style={{
           ...imageViewDims,
+          borderColor: 'orange',
+          borderWidth: 2,
         }}
         resizeMode="contain"
-        resizeMethod="scale">
-        {this.state.poses ? (
-          <Pose
-            poseIn={this.state.poses[0]}
-            scaledDims={getScaledDims(this.state.image, imageViewDims)}
-            imageViewDims={imageViewDims}
-          />
-        ) : null}
+        resizeMethod="auto">
+        {poseOverlay}
       </ImageBackground>
     ) : null;
 
@@ -156,10 +146,8 @@ export default class StaticImagePose extends React.Component<{}, State> {
         <View style={{ margin: 25 }}>
           <Button title="Select Image" onPress={this.onSelectImage} />
         </View>
-        <View>
-          {poseImageOverlay}
-          {debugMsg}
-        </View>
+        {imageView}
+        {debugMsg}
       </ScrollView>
     );
   }
