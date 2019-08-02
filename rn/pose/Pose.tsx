@@ -101,7 +101,9 @@ export const Pose: React.FunctionComponent<{
   imageDims: Dims; // the image for which pose is inferred
   viewDims: Dims; // the ImageBackground view in which the image is placed, and scaled to
   modelInputSize: number;
-}> = ({ poseIn, imageDims, viewDims, modelInputSize }) => {
+  strokeWidth: number;
+  radius: number;
+}> = ({ poseIn, imageDims, viewDims, modelInputSize, strokeWidth, radius }) => {
   const scaledImageDims = getScaledImageDims(imageDims, viewDims);
   const scaledPose = scalePose(
     poseIn,
@@ -111,7 +113,7 @@ export const Pose: React.FunctionComponent<{
 
   const pose = reindexPoseByPart(scaledPose);
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
-    return <Circle cx={kp.position.x} cy={kp.position.y} r="5" fill="pink" key={kp.part} />;
+    return <Circle cx={kp.position.x} cy={kp.position.y} r={radius} fill="pink" key={kp.part} />;
   });
   const lines = Skeleton.map(([from_part, to_part, side]) => {
     const from_kp = pose.keypoints[from_part];
@@ -135,7 +137,9 @@ export const Pose: React.FunctionComponent<{
         x2={to_kp.position.x}
         y2={to_kp.position.y}
         stroke={strokeColor}
-        strokeWidth="2"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
         key={`${from_part}-${to_part}`}
       />
     );

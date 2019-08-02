@@ -11,6 +11,7 @@ type State = {
   msg: string | object | null;
   poses: PoseT[] | null;
   cameraView: Dims | null;
+  timer: number | null;
 };
 
 const MODEL_INPUT_SIZE = 337;
@@ -18,7 +19,7 @@ const MODEL_IMAGE_MEAN = 127.5;
 const MODEL_IMAGE_STD = 127.5;
 
 export default class CameraPose extends React.Component<{}, State> {
-  state = { msg: null, poses: null, cameraView: null };
+  state = { msg: null, poses: null, cameraView: null, timer: null };
 
   constructor(props: {}) {
     super(props);
@@ -29,9 +30,10 @@ export default class CameraPose extends React.Component<{}, State> {
   };
 
   handleVideoPoseResponse = async res => {
+    const timer = Date.now();
     const poseData = res.nativeEvent.data;
     const poses = await decodePoses(poseData);
-    this.setState({ poses: poses });
+    this.setState({ poses: poses, timer: timer });
   };
 
   getPosesToDisplay = (): PoseT[] | null => {
@@ -54,7 +56,6 @@ export default class CameraPose extends React.Component<{}, State> {
           type={RNCamera.Constants.Type.front}
           modelParams={{
             file: modelFile,
-            freqms: 0,
             mean: MODEL_IMAGE_MEAN,
             std: MODEL_IMAGE_STD,
           }}
@@ -78,6 +79,8 @@ export default class CameraPose extends React.Component<{}, State> {
           imageDims={this.state.cameraView}
           viewDims={this.state.cameraView}
           modelInputSize={MODEL_INPUT_SIZE}
+          radius={5}
+          strokeWidth={20}
         />
       </View>
     ) : null;
@@ -108,6 +111,7 @@ export default class CameraPose extends React.Component<{}, State> {
     return (
       <View style={styles.container}>
         {cameraView}
+        <Text>{Date.now() - this.state.timer}ms</Text>
         {debugMsg}
       </View>
     );

@@ -116,6 +116,8 @@ export default class StaticImagePose extends React.Component<{}, State> {
         imageDims={this.state.image}
         viewDims={imageViewDims}
         modelInputSize={MODEL_INPUT_SIZE}
+        strokeWidth={3}
+        radius={5}
       />
     ) : null;
 
