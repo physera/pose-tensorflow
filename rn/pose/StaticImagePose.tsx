@@ -12,10 +12,7 @@ import {
 import HTML from 'react-native-render-html';
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
-import { Pose, decodePoses, PoseT, Dims } from './Pose';
-
-const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
-const labelsFile = '';
+import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
 
 let tflite = new Tflite();
 
@@ -26,14 +23,12 @@ type State = {
   poses: PoseT[] | null;
 };
 
-const MODEL_INPUT_SIZE = 337;
-
 export default class StaticImagePose extends React.Component<{}, State> {
   state = { msg: null, image: null, poses: null };
 
   constructor(props: {}) {
     super(props);
-    tflite.loadModel({ model: modelFile, labels: labelsFile });
+    tflite.loadModel({ model: MODEL_FILE, labels: '' });
   }
 
   getImageViewDims = (): Dims => {

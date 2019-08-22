@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   decodeMultiplePoses,
+  decodeSinglePose,
   scalePose,
   Keypoint,
   Pose as PoseT,
@@ -12,6 +13,9 @@ import Svg, { Circle, Line } from 'react-native-svg';
 export type Dims = { width: number; height: number };
 
 export { PoseT };
+
+export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
+export const MODEL_INPUT_SIZE = 337;
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -164,7 +168,21 @@ export const Pose: React.FunctionComponent<{
   );
 };
 
-export const decodePoses = async res => {
+type DecodingMethod = 'single' | 'multiple';
+
+const OUTPUT_STRIDE = 16;
+
+const decodeSingle = async (res): Promise<PoseT[]> => {
+  const [scores, offsets] = res;
+  const [scoreTensor, offsetTensor] = await Promise.all([
+    tf.tensor(scores).squeeze() as tf.Tensor3D,
+    tf.tensor(offsets).squeeze() as tf.Tensor3D,
+  ]);
+  const pose = await decodeSinglePose(scoreTensor, offsetTensor, OUTPUT_STRIDE);
+  return [pose];
+};
+
+const decodeMulti = async (res): Promise<PoseT[]> => {
   const [scores, offsets, dispFwd, dispBwd] = res;
   const [scoreTensor, offsetTensor, dispFwdTensor, dispBwdTensor] = await Promise.all([
     (tf.tensor(scores).squeeze() as tf.Tensor3D).buffer(),
@@ -172,13 +190,20 @@ export const decodePoses = async res => {
     (tf.tensor(dispFwd).squeeze() as tf.Tensor3D).buffer(),
     (tf.tensor(dispBwd).squeeze() as tf.Tensor3D).buffer(),
   ]);
-  // decodeMultiplePoses works better than decodeSinglePose
   return await decodeMultiplePoses(
     scoreTensor,
     offsetTensor,
     dispFwdTensor,
     dispBwdTensor,
-    16, // outputStride, picked by default. TODO: make configurable
+    OUTPUT_STRIDE,
     1 // numPoses
   );
+};
+
+export const decodePoses = async (decodingMethod: DecodingMethod, res): Promise<PoseT[]> => {
+  if (decodingMethod == 'single') {
+    return decodeSingle(res);
+  } else {
+    return decodeMulti(res);
+  }
 };

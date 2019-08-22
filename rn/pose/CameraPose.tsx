@@ -3,23 +3,22 @@ import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
 import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
-import { Pose, decodePoses, PoseT, Dims } from './Pose';
+import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
 
-const modelFile = 'posenet_mv1_075_float_from_checkpoints.tflite';
+type Timers = 'responseReceived' | 'other';
 
 type State = {
   msg: string | object | null;
   poses: PoseT[] | null;
   cameraView: Dims | null;
-  timer: number | null;
+  timers: { [key in Timers]?: number } | null;
 };
 
-const MODEL_INPUT_SIZE = 337;
 const MODEL_IMAGE_MEAN = 127.5;
 const MODEL_IMAGE_STD = 127.5;
 
 export default class CameraPose extends React.Component<{}, State> {
-  state = { msg: null, poses: null, cameraView: null, timer: null };
+  state = { msg: null, poses: null, cameraView: null, timers: null };
 
   constructor(props: {}) {
     super(props);
@@ -30,10 +29,10 @@ export default class CameraPose extends React.Component<{}, State> {
   };
 
   handleVideoPoseResponse = async res => {
-    const timer = Date.now();
+    const responseReceived = Date.now();
     const poseData = res.nativeEvent.data;
-    const poses = await decodePoses(poseData);
-    this.setState({ poses: poses, timer: timer });
+    const poses = await decodePoses('multiple', poseData);
+    this.setState({ poses: poses, timers: { ...this.state.timers, responseReceived } });
   };
 
   getPosesToDisplay = (): PoseT[] | null => {
@@ -54,10 +53,12 @@ export default class CameraPose extends React.Component<{}, State> {
         <RNCamera
           style={{ flex: 1 }}
           type={RNCamera.Constants.Type.front}
+          defaultVideoQuality={RNCamera.Constants.VideoQuality['480p']}
           modelParams={{
-            file: modelFile,
+            file: MODEL_FILE,
             mean: MODEL_IMAGE_MEAN,
             std: MODEL_IMAGE_STD,
+            freqms: 1500,
           }}
           onModelProcessed={this.handleVideoPoseResponse}
         />
@@ -111,7 +112,9 @@ export default class CameraPose extends React.Component<{}, State> {
     return (
       <View style={styles.container}>
         {cameraView}
-        <Text>{Date.now() - this.state.timer}ms</Text>
+        {this.state.timers ? (
+          <Text>Since response: {Date.now() - this.state.timers.responseReceived}ms</Text>
+        ) : null}
         {debugMsg}
       </View>
     );
