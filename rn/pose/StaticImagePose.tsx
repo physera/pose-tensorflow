@@ -44,7 +44,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
   };
 
   handleImagePoseResponse = async res => {
-    const poses = await decodePoses(res);
+    const poses = await decodePoses('multiple', res);
     this.setState({ poses: poses });
   };
 
@@ -81,12 +81,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   log = (msg: string | object) => {
     this.setState({ msg: msg });
-  };
-
-  handleVideoPoseResponse = async res => {
-    const poseData = res.nativeEvent.data;
-    const poses = await decodePoses(poseData);
-    this.setState({ poses: poses });
   };
 
   getPosesToDisplay = (): PoseT[] | null => {
