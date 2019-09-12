@@ -5,7 +5,15 @@ import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
 import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
 
-type Timers = 'responseReceived' | 'other';
+type Timers =
+  | 'responseReceived'
+  | 'inference'
+  | 'imageTime'
+  | 'inferenceBeginTime'
+  | 'inferenceEndTime'
+  | 'serializationBeginTime'
+  | 'serializationEndTime'
+  | 'other';
 
 type State = {
   msg: string | object | null;
@@ -31,8 +39,27 @@ export default class CameraPose extends React.Component<{}, State> {
   handleVideoPoseResponse = async res => {
     const responseReceived = Date.now();
     const poseData = res.nativeEvent.data;
-    const poses = await decodePoses('multiple', poseData);
-    this.setState({ poses: poses, timers: { ...this.state.timers, responseReceived } });
+    // console.log(this.camera.getAvailablePictureSizes());
+
+    const inferenceTime = res.nativeEvent.timing.inference_ns / 1e6;
+    const imageTime = res.nativeEvent.timing.imageTime;
+    const inferenceBeginTime = res.nativeEvent.timing.inferenceBeginTime;
+    const inferenceEndTime = res.nativeEvent.timing.inferenceEndTime;
+    const serializationBeginTime = res.nativeEvent.timing.serializationBeginTime;
+    const serializationEndTime = res.nativeEvent.timing.serializationEndTime;
+    this.setState({
+      poses: poses,
+      timers: {
+        ...this.state.timers,
+        responseReceived,
+        inference: inferenceTime,
+        imageTime,
+        inferenceBeginTime,
+        inferenceEndTime,
+        serializationEndTime,
+        serializationBeginTime,
+      },
+    });
   };
 
   getPosesToDisplay = (): PoseT[] | null => {
@@ -58,9 +85,10 @@ export default class CameraPose extends React.Component<{}, State> {
             file: MODEL_FILE,
             mean: MODEL_IMAGE_MEAN,
             std: MODEL_IMAGE_STD,
-            freqms: 1500,
+            freqms: 200,
           }}
           onModelProcessed={this.handleVideoPoseResponse}
+          useCamera2Api={false}
         />
       </FillToAspectRatio>
     );
@@ -73,7 +101,9 @@ export default class CameraPose extends React.Component<{}, State> {
           top: 0,
           left: 0,
           borderColor: 'blue',
-          borderWidth: 2,
+          borderWidth: 0,
+          width: this.state.cameraView.width,
+          height: this.state.cameraView.height,
         }}>
         <Pose
           poseIn={posesToDisplay[0]}
@@ -91,9 +121,9 @@ export default class CameraPose extends React.Component<{}, State> {
         style={{
           // height: Dimensions.get('window').height,
           width: Dimensions.get('window').width,
-          height: '90%',
+          height: Dimensions.get('window').width * (4.0 / 3.0),
           borderColor: 'black',
-          borderWidth: 5,
+          borderWidth: 0,
         }}
         onLayout={evt => this.setState({ cameraView: evt.nativeEvent.layout })}>
         {camera}
@@ -109,11 +139,30 @@ export default class CameraPose extends React.Component<{}, State> {
       <Text>No msg</Text>
     );
 
+    const timeNow = Date.now();
     return (
       <View style={styles.container}>
         {cameraView}
-        {this.state.timers ? (
-          <Text>Since response: {Date.now() - this.state.timers.responseReceived}ms</Text>
+        {this.state.timers && this.state.timers.responseReceived ? (
+          <Text>Since response: {timeNow - this.state.timers.responseReceived}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.inference ? (
+          <Text>Inference: {this.state.timers.inference}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.imageTime ? (
+          <Text>Lag-image: {timeNow - this.state.timers.imageTime}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.inferenceBeginTime ? (
+          <Text>Lag-inference-begin: {timeNow - this.state.timers.inferenceBeginTime}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.inferenceEndTime ? (
+          <Text>Lag-inference-end: {timeNow - this.state.timers.inferenceEndTime}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.serializationBeginTime ? (
+          <Text>Lag-serial: {timeNow - this.state.timers.serializationBeginTime}ms</Text>
+        ) : null}
+        {this.state.timers && this.state.timers.serializationEndTime ? (
+          <Text>Lag-serial-end: {timeNow - this.state.timers.serializationEndTime}ms</Text>
         ) : null}
         {debugMsg}
       </View>
