@@ -62,6 +62,11 @@ export default class CameraPose extends React.Component<Props, State> {
     const inferenceEndTime = res.nativeEvent.timing.inferenceEndTime;
     const serializationBeginTime = res.nativeEvent.timing.serializationBeginTime;
     const serializationEndTime = res.nativeEvent.timing.serializationEndTime;
+
+    const [poses] = poseData;
+    // const [poses] = await Promise.all([decodePoses('multiple', poseData)]);
+    // console.log(poses);
+
     this.setState({
       poses: poses,
       timers: {

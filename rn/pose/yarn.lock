@@ -5426,7 +5426,7 @@ react-is@^16.8.1, react-is@^16.8.4, react-is@^16.8.6:
   integrity sha512-aUk3bHfZ2bRSVFFbbeVS4i+lNPZr3/WM5jT2J5omUVV1zzcs1nAaf3l51ctA5FFvCRbhrH0bdAsRRQddFJZPtA==
 
 "react-native-camera@file:.yalc/react-native-camera":
-  version "3.0.0-b714b702"
+  version "3.0.0-7b64b185"
   dependencies:
     prop-types "^15.6.2"
 
