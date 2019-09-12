@@ -16,6 +16,14 @@ export { PoseT };
 
 export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
 export const MODEL_INPUT_SIZE = 337;
+const OUTPUT_STRIDE = 16;
+
+// export const MODEL_FILE = 'multi_person_mobilenet_v1_075_float.tflite';
+// export const MODEL_INPUT_SIZE = 353;
+
+// export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
+// export const MODEL_INPUT_SIZE = 257;
+// const OUTPUT_STRIDE = 32;
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -109,6 +117,9 @@ export const Pose: React.FunctionComponent<{
   radius: number;
 }> = ({ poseIn, imageDims, viewDims, modelInputSize, strokeWidth, radius }) => {
   const scaledImageDims = getScaledImageDims(imageDims, viewDims);
+  // console.log(imageDims);
+  // console.log(viewDims);
+  // console.log(scaledImageDims);
   const scaledPose = scalePose(
     poseIn,
     scaledImageDims.height / modelInputSize,
@@ -169,8 +180,6 @@ export const Pose: React.FunctionComponent<{
 };
 
 type DecodingMethod = 'single' | 'multiple';
-
-const OUTPUT_STRIDE = 16;
 
 const decodeSingle = async (res): Promise<PoseT[]> => {
   const [scores, offsets] = res;
