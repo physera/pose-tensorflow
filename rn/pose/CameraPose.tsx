@@ -22,14 +22,29 @@ type State = {
   timers: { [key in Timers]?: number } | null;
 };
 
+type Props = {
+  routeKey: string;
+  startPaused: boolean;
+  registerOnEnter: Function;
+  registerOnLeave: Function;
+};
+
 const MODEL_IMAGE_MEAN = 127.5;
 const MODEL_IMAGE_STD = 127.5;
 
-export default class CameraPose extends React.Component<{}, State> {
+export default class CameraPose extends React.Component<Props, State> {
+  static defaultProps = { startPaused: true };
   state = { msg: null, poses: null, cameraView: null, timers: null };
+  cameraRef: any;
 
-  constructor(props: {}) {
+  constructor(props: Props) {
     super(props);
+    this.props.registerOnLeave(this.props.routeKey, () => {
+      this.cameraRef.pausePreview();
+    });
+    this.props.registerOnEnter(this.props.routeKey, () => {
+      this.cameraRef.resumePreview();
+    });
   }
 
   log = (msg: string | object) => {
@@ -78,6 +93,9 @@ export default class CameraPose extends React.Component<{}, State> {
     const camera = (
       <FillToAspectRatio>
         <RNCamera
+          ref={ref => {
+            this.cameraRef = ref;
+          }}
           style={{ flex: 1 }}
           type={RNCamera.Constants.Type.front}
           defaultVideoQuality={RNCamera.Constants.VideoQuality['480p']}
