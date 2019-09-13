@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
 import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
-import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
+import { Pose, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
 
 type Timers =
   | 'responseReceived'
@@ -53,7 +53,7 @@ export default class CameraPose extends React.Component<Props, State> {
 
   handleVideoPoseResponse = async res => {
     const responseReceived = Date.now();
-    const poseData = res.nativeEvent.data;
+    const poses = res.nativeEvent.data;
     // console.log(this.camera.getAvailablePictureSizes());
 
     const inferenceTime = res.nativeEvent.timing.inference_ns / 1e6;
@@ -63,8 +63,6 @@ export default class CameraPose extends React.Component<Props, State> {
     const serializationBeginTime = res.nativeEvent.timing.serializationBeginTime;
     const serializationEndTime = res.nativeEvent.timing.serializationEndTime;
 
-    const [poses] = poseData;
-    // const [poses] = await Promise.all([decodePoses('multiple', poseData)]);
     // console.log(poses);
 
     this.setState({

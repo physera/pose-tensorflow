@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Dimensions, View, Text, StyleSheet } from 'react-native';
-import { TabView, SceneMap } from 'react-native-tab-view';
+import { TabView } from 'react-native-tab-view';
 import StaticImagePose from './StaticImagePose';
 import CameraPose from './CameraPose';
 
@@ -14,7 +14,7 @@ type State = {
 export default class App extends React.Component<{}, State> {
   state = {
     index: 0,
-    routes: [{ key: 'image', title: 'Image' }, { key: 'camera', title: 'Live' }],
+    routes: [{ key: 'camera', title: 'Live' }, { key: 'image', title: 'Image' }],
     onLeave: {},
     onEnter: {},
   };
