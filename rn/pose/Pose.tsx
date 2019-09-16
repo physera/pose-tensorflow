@@ -14,16 +14,18 @@ export type Dims = { width: number; height: number };
 
 export { PoseT };
 
-export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
-export const MODEL_INPUT_SIZE = 337;
-const OUTPUT_STRIDE = 16;
+// export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
+// export const MODEL_INPUT_SIZE = 337;
+// export const MODEL_OUTPUT_STRIDE = 16;
 
+// java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
 // export const MODEL_FILE = 'multi_person_mobilenet_v1_075_float.tflite';
-// export const MODEL_INPUT_SIZE = 353;
+// export const MODEL_INPUT_SIZE = 353; // whoops this is actually 353x257
+// export const MODEL_OUTPUT_STRIDE = 16;
 
-// export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
-// export const MODEL_INPUT_SIZE = 257;
-// const OUTPUT_STRIDE = 32;
+export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
+export const MODEL_INPUT_SIZE = 257;
+export const MODEL_OUTPUT_STRIDE = 32;
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -187,7 +189,7 @@ const decodeSingle = async (res): Promise<PoseT[]> => {
     tf.tensor(scores).squeeze() as tf.Tensor3D,
     tf.tensor(offsets).squeeze() as tf.Tensor3D,
   ]);
-  const pose = await decodeSinglePose(scoreTensor, offsetTensor, OUTPUT_STRIDE);
+  const pose = await decodeSinglePose(scoreTensor, offsetTensor, MODEL_OUTPUT_STRIDE);
   return [pose];
 };
 
@@ -204,7 +206,7 @@ const decodeMulti = async (res): Promise<PoseT[]> => {
     offsetTensor,
     dispFwdTensor,
     dispBwdTensor,
-    OUTPUT_STRIDE,
+    MODEL_OUTPUT_STRIDE,
     1 // numPoses
   );
 };

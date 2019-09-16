@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Dimensions, Button } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
 import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
-import { Pose, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
+import { Pose, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE, MODEL_OUTPUT_STRIDE } from './Pose';
 
 type Timers =
   | 'responseReceived'
@@ -19,6 +19,7 @@ type State = {
   msg: string | object | null;
   poses: PoseT[] | null;
   cameraView: Dims | null;
+  facingFront: boolean;
   timers: { [key in Timers]?: number } | null;
 };
 
@@ -34,7 +35,7 @@ const MODEL_IMAGE_STD = 127.5;
 
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
-  state = { msg: null, poses: null, cameraView: null, timers: null };
+  state = { msg: null, poses: null, cameraView: null, timers: null, facingFront: true };
   cameraRef: any;
 
   constructor(props: Props) {
@@ -86,36 +87,26 @@ export default class CameraPose extends React.Component<Props, State> {
     }
   };
 
-  render() {
-    // const poseDebug = this.state.poses ? (
-    //   <View style={{ margin: 20, borderWidth: 1, borderColor: 'red' }}>
-    //     <HTML html={`<pre>${JSON.stringify(this.state.poses, null, 2)}</pre>`} />
-    //   </View>
-    // ) : null;
-
-    const camera = (
-      <FillToAspectRatio>
-        <RNCamera
-          ref={ref => {
-            this.cameraRef = ref;
-          }}
-          style={{ flex: 1 }}
-          type={RNCamera.Constants.Type.front}
-          defaultVideoQuality={RNCamera.Constants.VideoQuality['480p']}
-          modelParams={{
-            file: MODEL_FILE,
-            mean: MODEL_IMAGE_MEAN,
-            std: MODEL_IMAGE_STD,
-            freqms: 200,
-          }}
-          onModelProcessed={this.handleVideoPoseResponse}
-          useCamera2Api={false}
+  _flipCamera = () => {
+    return (
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        }}>
+        <Button
+          title="Flip"
+          color="#f194ff"
+          onPress={() => this.setState({ facingFront: !this.state.facingFront })}
         />
-      </FillToAspectRatio>
+      </View>
     );
+  };
 
+  _poseOverlay = () => {
     const posesToDisplay = this.getPosesToDisplay();
-    const poseOverlay = posesToDisplay ? (
+    return posesToDisplay ? (
       <View
         style={{
           position: 'absolute',
@@ -136,34 +127,38 @@ export default class CameraPose extends React.Component<Props, State> {
         />
       </View>
     ) : null;
+  };
 
-    const cameraView = (
-      <View
-        style={{
-          // height: Dimensions.get('window').height,
-          width: Dimensions.get('window').width,
-          height: Dimensions.get('window').width * (4.0 / 3.0),
-          borderColor: 'black',
-          borderWidth: 0,
-        }}
-        onLayout={evt => this.setState({ cameraView: evt.nativeEvent.layout })}>
-        {camera}
-        {poseOverlay}
-      </View>
+  _camera = () => {
+    return (
+      <FillToAspectRatio>
+        <RNCamera
+          ref={ref => {
+            this.cameraRef = ref;
+          }}
+          style={{ flex: 1 }}
+          type={
+            this.state.facingFront ? RNCamera.Constants.Type.front : RNCamera.Constants.Type.back
+          }
+          defaultVideoQuality={RNCamera.Constants.VideoQuality['480p']}
+          modelParams={{
+            file: MODEL_FILE,
+            mean: MODEL_IMAGE_MEAN,
+            std: MODEL_IMAGE_STD,
+            freqms: 0,
+            outputStride: MODEL_OUTPUT_STRIDE,
+          }}
+          onModelProcessed={this.handleVideoPoseResponse}
+          useCamera2Api={false}
+        />
+      </FillToAspectRatio>
     );
+  };
 
-    const debugMsg = this.state.msg ? (
-      <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
-        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
-      </View>
-    ) : (
-      <Text>No msg</Text>
-    );
-
+  _lagTimers = () => {
     const timeNow = Date.now();
     return (
-      <View style={styles.container}>
-        {cameraView}
+      <View>
         {this.state.timers && this.state.timers.responseReceived ? (
           <Text>Since response: {timeNow - this.state.timers.responseReceived}ms</Text>
         ) : null}
@@ -185,6 +180,38 @@ export default class CameraPose extends React.Component<Props, State> {
         {this.state.timers && this.state.timers.serializationEndTime ? (
           <Text>Lag-serial-end: {timeNow - this.state.timers.serializationEndTime}ms</Text>
         ) : null}
+      </View>
+    );
+  };
+
+  render() {
+    const cameraView = (
+      <View
+        style={{
+          width: Dimensions.get('window').width,
+          height: Dimensions.get('window').width * (4.0 / 3.0),
+          borderColor: 'black',
+          borderWidth: 0,
+        }}
+        onLayout={evt => this.setState({ cameraView: evt.nativeEvent.layout })}>
+        {this._camera()}
+        {this._poseOverlay()}
+        {this._flipCamera()}
+      </View>
+    );
+
+    const debugMsg = this.state.msg ? (
+      <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
+        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
+      </View>
+    ) : (
+      <Text>No msg</Text>
+    );
+
+    return (
+      <View style={styles.container}>
+        {cameraView}
+        {this._lagTimers()}
         {debugMsg}
       </View>
     );
