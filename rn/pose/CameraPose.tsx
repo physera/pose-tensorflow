@@ -19,6 +19,7 @@ type State = {
   msg: string | object | null;
   poses: PoseT[] | null;
   cameraView: Dims | null;
+  rotation: number;
   facingFront: boolean;
   timers: { [key in Timers]?: number } | null;
 };
@@ -35,7 +36,14 @@ const MODEL_IMAGE_STD = 127.5;
 
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
-  state = { msg: null, poses: null, cameraView: null, timers: null, facingFront: true };
+  state = {
+    msg: null,
+    poses: null,
+    cameraView: null,
+    timers: null,
+    facingFront: true,
+    rotation: 0,
+  };
   cameraRef: any;
 
   constructor(props: Props) {
@@ -54,20 +62,35 @@ export default class CameraPose extends React.Component<Props, State> {
 
   handleVideoPoseResponse = async res => {
     const responseReceived = Date.now();
-    const poses = res.nativeEvent.data;
+    const evt = res.nativeEvent;
+    const poses = evt.data;
+
+    console.log(evt);
+    console.log([
+      evt.dimensions.rotation,
+      evt.dimensions.cameraOrientation,
+      evt.dimensions.deviceRotation,
+    ]);
     // console.log(this.camera.getAvailablePictureSizes());
 
-    const inferenceTime = res.nativeEvent.timing.inference_ns / 1e6;
-    const imageTime = res.nativeEvent.timing.imageTime;
-    const inferenceBeginTime = res.nativeEvent.timing.inferenceBeginTime;
-    const inferenceEndTime = res.nativeEvent.timing.inferenceEndTime;
-    const serializationBeginTime = res.nativeEvent.timing.serializationBeginTime;
-    const serializationEndTime = res.nativeEvent.timing.serializationEndTime;
+    const inferenceTime = evt.timing.inference_ns / 1e6;
+    const imageTime = evt.timing.imageTime;
+    const inferenceBeginTime = evt.timing.inferenceBeginTime;
+    const inferenceEndTime = evt.timing.inferenceEndTime;
+    const serializationBeginTime = evt.timing.serializationBeginTime;
+    const serializationEndTime = evt.timing.serializationEndTime;
 
-    // console.log(poses);
+    const width = evt.dimensions.width * evt.scale.scaleX;
+    const height = evt.dimensions.height * evt.scale.scaleY;
 
     this.setState({
       poses: poses,
+      cameraView: {
+        width: width,
+        height: height,
+      },
+      rotation: evt.dimensions.deviceRotation,
+
       timers: {
         ...this.state.timers,
         responseReceived,
@@ -106,7 +129,7 @@ export default class CameraPose extends React.Component<Props, State> {
 
   _poseOverlay = () => {
     const posesToDisplay = this.getPosesToDisplay();
-    return posesToDisplay ? (
+    return posesToDisplay && this.state.cameraView ? (
       <View
         style={{
           position: 'absolute',
@@ -122,14 +145,14 @@ export default class CameraPose extends React.Component<Props, State> {
           imageDims={this.state.cameraView}
           viewDims={this.state.cameraView}
           modelInputSize={MODEL_INPUT_SIZE}
-          radius={5}
-          strokeWidth={20}
+          rotation={this.state.rotation}
         />
       </View>
     ) : null;
   };
 
   _camera = () => {
+    // autoFocusPointOfInterest: note that coordinates are in landscape with home to right
     return (
       <FillToAspectRatio>
         <RNCamera
@@ -140,7 +163,10 @@ export default class CameraPose extends React.Component<Props, State> {
           type={
             this.state.facingFront ? RNCamera.Constants.Type.front : RNCamera.Constants.Type.back
           }
-          defaultVideoQuality={RNCamera.Constants.VideoQuality['480p']}
+          defaultVideoQuality={RNCamera.Constants.VideoQuality['4:3']}
+          autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
+          ratio="4:3" // default
+          zoom={0}
           modelParams={{
             file: MODEL_FILE,
             mean: MODEL_IMAGE_MEAN,
@@ -149,7 +175,6 @@ export default class CameraPose extends React.Component<Props, State> {
             outputStride: MODEL_OUTPUT_STRIDE,
           }}
           onModelProcessed={this.handleVideoPoseResponse}
-          useCamera2Api={false}
         />
       </FillToAspectRatio>
     );
@@ -192,8 +217,7 @@ export default class CameraPose extends React.Component<Props, State> {
           height: Dimensions.get('window').width * (4.0 / 3.0),
           borderColor: 'black',
           borderWidth: 0,
-        }}
-        onLayout={evt => this.setState({ cameraView: evt.nativeEvent.layout })}>
+        }}>
         {this._camera()}
         {this._poseOverlay()}
         {this._flipCamera()}

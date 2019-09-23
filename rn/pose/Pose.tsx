@@ -2,13 +2,12 @@ import * as React from 'react';
 import {
   decodeMultiplePoses,
   decodeSinglePose,
-  scalePose,
   Keypoint,
   Pose as PoseT,
 } from '@tensorflow-models/posenet';
 
 import * as tf from '@tensorflow/tfjs-core';
-import Svg, { Circle, Line } from 'react-native-svg';
+import Svg, { Circle, Line, G } from 'react-native-svg';
 
 export type Dims = { width: number; height: number };
 
@@ -115,20 +114,17 @@ export const Pose: React.FunctionComponent<{
   imageDims: Dims; // the image for which pose is inferred
   viewDims: Dims; // the ImageBackground view in which the image is placed, and scaled to
   modelInputSize: number;
-  strokeWidth: number;
-  radius: number;
-}> = ({ poseIn, imageDims, viewDims, modelInputSize, strokeWidth, radius }) => {
+  rotation: number;
+}> = ({ poseIn, imageDims, viewDims, modelInputSize, rotation }) => {
   const scaledImageDims = getScaledImageDims(imageDims, viewDims);
   // console.log(imageDims);
   // console.log(viewDims);
   // console.log(scaledImageDims);
-  const scaledPose = scalePose(
-    poseIn,
-    scaledImageDims.height / modelInputSize,
-    scaledImageDims.width / modelInputSize
-  );
 
-  const pose = reindexPoseByPart(scaledPose);
+  const pose = reindexPoseByPart(poseIn);
+  const strokeWidth = modelInputSize / 100;
+  const radius = modelInputSize / 100;
+
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
     return <Circle cx={kp.position.x} cy={kp.position.y} r={radius} fill="pink" key={kp.part} />;
   });
@@ -162,12 +158,17 @@ export const Pose: React.FunctionComponent<{
     );
   });
 
+  // - transforms get applied last -> first.
+  // - we first rotate the (usually square) modelInputSize box about its center, then scale it to the full view size
+  const transform = `scale(${scaledImageDims.width / modelInputSize},${scaledImageDims.height /
+    modelInputSize}) rotate(${360 - rotation}, ${modelInputSize / 2}, ${modelInputSize / 2}) `;
+
   return (
     <Svg
       style={{
         position: 'absolute',
-        top: (viewDims.height - scaledImageDims.height) / 2,
-        left: (viewDims.width - scaledImageDims.width) / 2,
+        top: 0,
+        left: 0,
         borderColor: 'red',
         borderWidth: 2,
       }}
@@ -175,8 +176,10 @@ export const Pose: React.FunctionComponent<{
       height={scaledImageDims.height}
       viewBox={`0 0 ${scaledImageDims.width} ${scaledImageDims.height}`}
       preserveAspectRatio="none">
-      {points}
-      {lines}
+      <G transform={transform}>
+        {points}
+        {lines}
+      </G>
     </Svg>
   );
 };
