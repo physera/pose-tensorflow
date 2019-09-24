@@ -55,72 +55,12 @@ const Skeleton: [string, string, Side][] = [
   ['rightKnee', 'rightAnkle', 'Right'],
 ];
 
-const _scaleDims = (largerDim: number, viewDim: number, smallerDim: number): [number, number] => {
-  const scaledLargerDim = Math.min(largerDim, viewDim);
-  const scaledSmallerDim = (scaledLargerDim / largerDim) * smallerDim;
-  return [scaledLargerDim, scaledSmallerDim];
-};
-
-const getScaledImageDims = (imageDims: Dims, viewDims: Dims): Dims => {
-  // We are using ImageBackground with dimensions = getImageViewDims()
-  // with resizeMode=contain. This means that the Image will get
-  // scaled such that one dimension will be set to the size of the
-  // ImageBackground and the other will be scaled proportionally to
-  // maintain the right aspect ratio, and will be smaller than the
-  // corresponding ImageBackground dimension.
-  //
-  // These scaled dimensions are computed in getScaledImageDims().
-  const heightRatio = viewDims.height / imageDims.height;
-  const widthRatio = viewDims.width / imageDims.width;
-
-  let scaledHeight: number;
-  let scaledWidth: number;
-
-  if (heightRatio <= widthRatio) {
-    [scaledHeight, scaledWidth] = _scaleDims(imageDims.height, viewDims.height, imageDims.width);
-  } else {
-    [scaledWidth, scaledHeight] = _scaleDims(imageDims.width, viewDims.width, imageDims.height);
-  }
-  return { height: scaledHeight, width: scaledWidth };
-};
-
-// * Scaling considerations
-//
-// We are using ImageBackground with dimensions = getImageViewDims()
-// with resizeMode=contain. This means that the Image will get
-// scaled, these scaled dimensions are computed in
-// getScaledImageDims() - see for more detail.
-//
-// Now the Pose needs to get overlaid on this ImageBackground such
-// that it actually sits on top of the Image.
-//
-// To do this, we position the Svg assuming that the scaled Image is
-// centered in both dimensions in the ImageBackground (setting top,
-// left based on this), and then set the Svg's dimensions to be the
-// scaled image dimensions.
-//
-// We then set the viewBox of the Svg to also be the scaled image
-// dimensions, and scale the pose to these dimensions as well.
-//
-// (In theory the viewBox could be set to the original image
-// dimensions without scaling the pose, but the size of the
-// circle/lines will then be according to that scale and look tiny
-// in some cases.)
-//
-//
-
 export const Pose: React.FunctionComponent<{
   poseIn: PoseT;
   imageDims: Dims; // the image for which pose is inferred
-  viewDims: Dims; // the ImageBackground view in which the image is placed, and scaled to
   modelInputSize: number;
   rotation: number;
-}> = ({ poseIn, imageDims, viewDims, modelInputSize, rotation }) => {
-  const scaledImageDims = getScaledImageDims(imageDims, viewDims);
-  // console.log(imageDims);
-  // console.log(viewDims);
-  // console.log(scaledImageDims);
-
+}> = ({ poseIn, imageDims, modelInputSize, rotation }) => {
   const pose = reindexPoseByPart(poseIn);
   const strokeWidth = modelInputSize / 100;
   const radius = modelInputSize / 100;
@@ -160,7 +100,7 @@ export const Pose: React.FunctionComponent<{
 
   // - transforms get applied last -> first.
   // - we first rotate the (usually square) modelInputSize box about its center, then scale it to the full view size
-  const transform = `scale(${scaledImageDims.width / modelInputSize},${scaledImageDims.height /
+  const transform = `scale(${imageDims.width / modelInputSize},${imageDims.height /
     modelInputSize}) rotate(${360 - rotation}, ${modelInputSize / 2}, ${modelInputSize / 2}) `;
 
   return (
@@ -172,9 +112,9 @@ export const Pose: React.FunctionComponent<{
         borderColor: 'red',
         borderWidth: 2,
       }}
-      width={scaledImageDims.width}
-      height={scaledImageDims.height}
-      viewBox={`0 0 ${scaledImageDims.width} ${scaledImageDims.height}`}
+      width={imageDims.width}
+      height={imageDims.height}
+      viewBox={`0 0 ${imageDims.width} ${imageDims.height}`}
       preserveAspectRatio="none">
       <G transform={transform}>
         {points}
@@ -215,6 +155,8 @@ const decodeMulti = async (res): Promise<PoseT[]> => {
 };
 
 export const decodePoses = async (decodingMethod: DecodingMethod, res): Promise<PoseT[]> => {
+  // webgl not available on pixel 3a atleast
+  await tf.setBackend('cpu');
   if (decodingMethod == 'single') {
     return decodeSingle(res);
   } else {

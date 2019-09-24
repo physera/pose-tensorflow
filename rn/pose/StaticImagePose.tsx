@@ -6,7 +6,7 @@ import {
   ScrollView,
   Platform,
   Button,
-  ImageBackground,
+  Image,
   Dimensions,
 } from 'react-native';
 import HTML from 'react-native-render-html';
@@ -21,6 +21,35 @@ type State = {
   msg: string | object | null;
   image: ImageT | null;
   poses: PoseT[] | null;
+};
+
+const getScaledImageDims = (imageDims: Dims, viewDims: Dims): Dims => {
+  const isTallerThanView = imageDims.height > viewDims.height;
+  const isWiderThanView = imageDims.width > viewDims.width;
+  const aspectRatio = imageDims.height / imageDims.width;
+
+  const pinHeightToViewDims = {
+    height: viewDims.height,
+    width: (1 / aspectRatio) * viewDims.height,
+  };
+  const pinWidthToViewDims = {
+    width: viewDims.width,
+    height: aspectRatio * viewDims.width,
+  };
+
+  if (isTallerThanView && isWiderThanView) {
+    if (imageDims.height / viewDims.height > imageDims.width / viewDims.width) {
+      return pinHeightToViewDims;
+    } else {
+      return pinWidthToViewDims;
+    }
+  } else if (isTallerThanView) {
+    return pinHeightToViewDims;
+  } else if (isWiderThanView) {
+    return pinWidthToViewDims;
+  } else {
+    return imageDims;
+  }
 };
 
 export default class StaticImagePose extends React.Component<{}, State> {
@@ -39,7 +68,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
     const window = Dimensions.get('window');
     return {
       height: window.height * 0.8,
-      width: window.width,
+      width: window.width * 0.9,
     };
   };
 
@@ -50,14 +79,18 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   onSelectImage = () => {
     ImagePicker.launchImageLibrary({}, response => {
+      console.log(response);
       if (response.didCancel) {
         this.log('Cancelled');
       } else if (response.error) {
         this.log('Error');
       } else {
         var path = Platform.OS === 'ios' ? response.uri : 'file://' + response.path;
+        const [height, width] = response.isVertical
+          ? [response.height, response.width]
+          : [response.width, response.height];
         this.setState({
-          image: { path: path, width: response.width, height: response.height },
+          image: { path: path, width: width, height: height },
         });
         // tflite.runPoseNetOnImage(
         //   {
@@ -89,8 +122,22 @@ export default class StaticImagePose extends React.Component<{}, State> {
     }
   };
 
-  render() {
+  _getSelectButton = () => {
+    return (
+      <View style={{ margin: 25 }}>
+        <Button title="Select Image" onPress={this.onSelectImage} />
+      </View>
+    );
+  };
+
+  _getImageView = () => {
+    if (!this.state.image) {
+      return null;
+    }
+
     const imageViewDims = this.getImageViewDims();
+    const scaledImageDims = getScaledImageDims(this.state.image, imageViewDims);
+    console.log([imageViewDims, this.state.image, scaledImageDims]);
 
     // const poseDebug = this.state.poses ? (
     //   <View style={{ margin: 20, borderWidth: 1, borderColor: 'red' }}>
@@ -102,26 +149,42 @@ export default class StaticImagePose extends React.Component<{}, State> {
     const poseOverlay = posesToDisplay ? (
       <Pose
         poseIn={posesToDisplay[0]}
-        imageDims={this.state.image}
-        viewDims={imageViewDims}
+        imageDims={scaledImageDims}
         modelInputSize={MODEL_INPUT_SIZE}
         rotation={0}
       />
     ) : null;
 
-    const imageView = this.state.image ? (
-      <ImageBackground
-        source={{ uri: this.state.image.path }}
+    const imageView = (
+      <View
         style={{
-          ...imageViewDims,
-          borderColor: 'orange',
+          borderColor: 'blue',
           borderWidth: 2,
-        }}
-        resizeMode="contain"
-        resizeMethod="auto">
-        {poseOverlay}
-      </ImageBackground>
-    ) : null;
+        }}>
+        <Image
+          source={{ uri: this.state.image.path }}
+          style={{
+            borderColor: 'orange',
+            borderWidth: 2,
+            ...scaledImageDims,
+          }}
+          resizeMode="contain"
+          resizeMethod="scale"
+          onLayout={evt => console.log(evt.nativeEvent)}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            borderColor: 'red',
+            borderWidth: 0,
+            ...scaledImageDims,
+          }}>
+          {poseOverlay}
+        </View>
+      </View>
+    );
 
     const debugMsg = this.state.msg ? (
       <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
@@ -130,14 +193,19 @@ export default class StaticImagePose extends React.Component<{}, State> {
     ) : (
       <Text>No msg</Text>
     );
-
     return (
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={{ margin: 25 }}>
-          <Button title="Select Image" onPress={this.onSelectImage} />
-        </View>
+      <View>
         {imageView}
         {debugMsg}
+      </View>
+    );
+  };
+
+  render() {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        {this._getSelectButton()}
+        {this._getImageView()}
       </ScrollView>
     );
   }

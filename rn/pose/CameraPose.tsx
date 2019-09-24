@@ -143,7 +143,6 @@ export default class CameraPose extends React.Component<Props, State> {
         <Pose
           poseIn={posesToDisplay[0]}
           imageDims={this.state.cameraView}
-          viewDims={this.state.cameraView}
           modelInputSize={MODEL_INPUT_SIZE}
           rotation={this.state.rotation}
         />

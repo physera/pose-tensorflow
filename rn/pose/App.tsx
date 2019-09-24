@@ -14,7 +14,7 @@ type State = {
 export default class App extends React.Component<{}, State> {
   state = {
     index: 0,
-    routes: [{ key: 'camera', title: 'Live' }, { key: 'image', title: 'Image' }],
+    routes: [{ key: 'image', title: 'Image' }, { key: 'camera', title: 'Live' }],
     onLeave: {},
     onEnter: {},
   };
