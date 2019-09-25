@@ -62,17 +62,9 @@ export default class CameraPose extends React.Component<Props, State> {
 
   handleVideoPoseResponse = async res => {
     const responseReceived = Date.now();
+
     const evt = res.nativeEvent;
     const poses = evt.data;
-
-    console.log(evt);
-    console.log([
-      evt.dimensions.rotation,
-      evt.dimensions.cameraOrientation,
-      evt.dimensions.deviceRotation,
-    ]);
-    // console.log(this.camera.getAvailablePictureSizes());
-
     const inferenceTime = evt.timing.inference_ns / 1e6;
     const imageTime = evt.timing.imageTime;
     const inferenceBeginTime = evt.timing.inferenceBeginTime;
@@ -135,8 +127,6 @@ export default class CameraPose extends React.Component<Props, State> {
           position: 'absolute',
           top: 0,
           left: 0,
-          borderColor: 'blue',
-          borderWidth: 0,
           width: this.state.cameraView.width,
           height: this.state.cameraView.height,
         }}>
@@ -214,8 +204,6 @@ export default class CameraPose extends React.Component<Props, State> {
         style={{
           width: Dimensions.get('window').width,
           height: Dimensions.get('window').width * (4.0 / 3.0),
-          borderColor: 'black',
-          borderWidth: 0,
         }}>
         {this._camera()}
         {this._poseOverlay()}
@@ -224,7 +212,7 @@ export default class CameraPose extends React.Component<Props, State> {
     );
 
     const debugMsg = this.state.msg ? (
-      <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
+      <View style={{ margin: 20 }}>
         <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
       </View>
     ) : (

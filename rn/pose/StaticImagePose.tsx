@@ -79,7 +79,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   onSelectImage = () => {
     ImagePicker.launchImageLibrary({}, response => {
-      console.log(response);
       if (response.didCancel) {
         this.log('Cancelled');
       } else if (response.error) {
@@ -151,16 +150,10 @@ export default class StaticImagePose extends React.Component<{}, State> {
     ) : null;
 
     const imageView = (
-      <View
-        style={{
-          borderColor: 'blue',
-          borderWidth: 2,
-        }}>
+      <View>
         <Image
           source={{ uri: this.state.image.path }}
           style={{
-            borderColor: 'orange',
-            borderWidth: 2,
             ...scaledImageDims,
           }}
           resizeMode="contain"
@@ -171,8 +164,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
             position: 'absolute',
             top: 0,
             left: 0,
-            borderColor: 'red',
-            borderWidth: 0,
             ...scaledImageDims,
           }}>
           {poseOverlay}

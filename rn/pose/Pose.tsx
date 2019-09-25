@@ -13,18 +13,18 @@ export type Dims = { width: number; height: number };
 
 export { PoseT };
 
-// export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
-// export const MODEL_INPUT_SIZE = 337;
-// export const MODEL_OUTPUT_STRIDE = 16;
+export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
+export const MODEL_INPUT_SIZE = 337;
+export const MODEL_OUTPUT_STRIDE = 16;
 
 // java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
 // export const MODEL_FILE = 'multi_person_mobilenet_v1_075_float.tflite';
 // export const MODEL_INPUT_SIZE = 353; // whoops this is actually 353x257
 // export const MODEL_OUTPUT_STRIDE = 16;
 
-export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
-export const MODEL_INPUT_SIZE = 257;
-export const MODEL_OUTPUT_STRIDE = 32;
+// export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
+// export const MODEL_INPUT_SIZE = 257;
+// export const MODEL_OUTPUT_STRIDE = 32;
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -109,8 +109,6 @@ export const Pose: React.FunctionComponent<{
         position: 'absolute',
         top: 0,
         left: 0,
-        borderColor: 'red',
-        borderWidth: 2,
       }}
       width={imageDims.width}
       height={imageDims.height}
