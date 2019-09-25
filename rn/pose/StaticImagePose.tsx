@@ -16,7 +16,7 @@ import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './
 
 let tflite = new Tflite();
 
-type ImageT = { path: string } & Dims;
+type ImageT = { path: string; rotation: number } & Dims;
 type State = {
   msg: string | object | null;
   image: ImageT | null;
@@ -57,7 +57,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   constructor(props: {}) {
     super(props);
-    tflite.loadModel({ model: MODEL_FILE, labels: '' });
+    tflite.loadModel({ model: MODEL_FILE });
   }
 
   getImageViewDims = (): Dims => {
@@ -89,8 +89,10 @@ export default class StaticImagePose extends React.Component<{}, State> {
         const [height, width] = response.isVertical
           ? [response.height, response.width]
           : [response.width, response.height];
+
+        const rotation = response.originalRotation;
         this.setState({
-          image: { path: path, width: width, height: height },
+          image: { path, rotation, width: width, height: height },
         });
         // tflite.runPoseNetOnImage(
         //   {
@@ -102,7 +104,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
         //     else this.setState({ poses: res });
         //   }
         // );
-        tflite.runModelOnImageMulti({ path }, async (err, res) => {
+        tflite.runModelOnImageMulti({ path, rotation }, async (err, res) => {
           if (err) this.log(err);
           else {
             await this.handleImagePoseResponse(res);
@@ -137,13 +139,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
     const imageViewDims = this.getImageViewDims();
     const scaledImageDims = getScaledImageDims(this.state.image, imageViewDims);
-    console.log([imageViewDims, this.state.image, scaledImageDims]);
-
-    // const poseDebug = this.state.poses ? (
-    //   <View style={{ margin: 20, borderWidth: 1, borderColor: 'red' }}>
-    //     <HTML html={`<pre>${JSON.stringify(this.state.poses, null, 2)}</pre>`} />
-    //   </View>
-    // ) : null;
 
     const posesToDisplay = this.getPosesToDisplay();
     const poseOverlay = posesToDisplay ? (
@@ -170,7 +165,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
           }}
           resizeMode="contain"
           resizeMethod="scale"
-          onLayout={evt => console.log(evt.nativeEvent)}
         />
         <View
           style={{
