@@ -74,7 +74,9 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   handleImagePoseResponse = async res => {
     const poses = await decodePoses('multiple', res);
-    this.setState({ poses: poses });
+    if (poses && poses.length) {
+      this.setState({ poses: poses });
+    }
   };
 
   onSelectImage = () => {
@@ -93,16 +95,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
         this.setState({
           image: { path, rotation, width: width, height: height },
         });
-        // tflite.runPoseNetOnImage(
-        //   {
-        //     path,
-        //     threshold: 0.3,
-        //   },
-        //   (err, res) => {
-        //     if (err) this.log(err);
-        //     else this.setState({ poses: res });
-        //   }
-        // );
         tflite.runModelOnImageMulti({ path, rotation }, async (err, res) => {
           if (err) this.log(err);
           else {
@@ -117,17 +109,24 @@ export default class StaticImagePose extends React.Component<{}, State> {
     this.setState({ msg: msg });
   };
 
-  getPosesToDisplay = (): PoseT[] | null => {
-    if (this.state.image && this.state.poses && this.state.poses.length) {
-      return this.state.poses;
-    }
-  };
-
   _getSelectButton = () => {
     return (
       <View style={{ margin: 25 }}>
         <Button title="Select Image" onPress={this.onSelectImage} />
       </View>
+    );
+  };
+
+  _debugMsg = () => {
+    if (!__DEV__) {
+      return null;
+    }
+    return this.state.msg ? (
+      <View style={{ margin: 20 }}>
+        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
+      </View>
+    ) : (
+      <Text>No msg</Text>
     );
   };
 
@@ -139,10 +138,9 @@ export default class StaticImagePose extends React.Component<{}, State> {
     const imageViewDims = this.getImageViewDims();
     const scaledImageDims = getScaledImageDims(this.state.image, imageViewDims);
 
-    const posesToDisplay = this.getPosesToDisplay();
-    const poseOverlay = posesToDisplay ? (
+    const poseOverlay = this.state.poses ? (
       <Pose
-        poseIn={posesToDisplay[0]}
+        poseIn={this.state.poses[0]}
         imageDims={scaledImageDims}
         modelInputSize={MODEL_INPUT_SIZE}
         rotation={0}
@@ -171,17 +169,10 @@ export default class StaticImagePose extends React.Component<{}, State> {
       </View>
     );
 
-    const debugMsg = this.state.msg ? (
-      <View style={{ margin: 20, borderWidth: 1, borderColor: 'black' }}>
-        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
-      </View>
-    ) : (
-      <Text>No msg</Text>
-    );
     return (
       <View>
         {imageView}
-        {debugMsg}
+        {this._debugMsg()}
       </View>
     );
   };
