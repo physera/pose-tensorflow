@@ -61,10 +61,6 @@ export default class StaticImagePose extends React.Component<{}, State> {
   }
 
   getImageViewDims = (): Dims => {
-    // Setting these to %s is weird because the dims are passed
-    // on to the Image, and then they apply twice, once relative
-    // to the outer container, then relative to the
-    // ImageBackground container as well
     const window = Dimensions.get('window');
     return {
       height: window.height * 0.8,
@@ -91,6 +87,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
           ? [response.height, response.width]
           : [response.width, response.height];
 
+        // @ts-ignore (the type is incorrect)
         const rotation = response.originalRotation;
         this.setState({
           image: { path, rotation, width: width, height: height },

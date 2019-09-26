@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, Text, View, Dimensions, Button } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
-import HTML from 'react-native-render-html';
 import { RNCamera } from 'react-native-camera';
 import { Pose, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE, MODEL_OUTPUT_STRIDE } from './Pose';
 import Timer from './Timer';
@@ -152,7 +151,7 @@ export default class CameraPose extends React.Component<Props, State> {
       } else if (this.state.targetPose) {
         return ['Update target pose', 'brown'];
       } else {
-        return ['Record target pose', 'blue'];
+        return ['Record target pose', null];
       }
     })();
 
