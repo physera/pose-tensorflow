@@ -9,9 +9,7 @@ import {
   PoseT,
   Keypoint,
   Dims,
-  MODEL_FILE,
-  MODEL_INPUT_SIZE,
-  MODEL_OUTPUT_STRIDE,
+  getModel,
   matchingTargetKeypoints,
 } from './Pose';
 import Timer from './Timer';
@@ -91,9 +89,9 @@ export default class CameraPose extends React.Component<Props, State> {
       const [keypoints, total] = matchingTargetKeypoints(
         this.state.targetPose,
         pose,
-        0.25,
-        0.25,
-        MODEL_INPUT_SIZE
+        0.25, // scoreThreshold
+        0.25, // distanceThreshold
+        getModel().inputSize
       );
       this.setState({ targetMatch: { keypoints, total } });
     }
@@ -222,7 +220,7 @@ export default class CameraPose extends React.Component<Props, State> {
         <Pose
           poseIn={pose}
           imageDims={this.state.cameraView}
-          modelInputSize={MODEL_INPUT_SIZE}
+          modelInputSize={getModel().inputSize}
           rotation={this.state.rotation}
           scoreThreshold={0.25}
           highlightParts={partsToHighlight}
@@ -249,11 +247,10 @@ export default class CameraPose extends React.Component<Props, State> {
           autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
           ratio="4:3" // default
           modelParams={{
-            file: MODEL_FILE,
             mean: MODEL_IMAGE_MEAN,
             std: MODEL_IMAGE_STD,
             freqms: 0,
-            outputStride: MODEL_OUTPUT_STRIDE,
+            ...getModel(),
           }}
           onModelProcessed={this.handleVideoPoseResponse}
         />

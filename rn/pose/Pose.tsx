@@ -6,8 +6,8 @@ import {
   getBoundingBox,
   Keypoint,
   Pose as PoseT,
+  PoseNetOutputStride, //
 } from '@tensorflow-models/posenet';
-import Overlay from './Overlay';
 import * as tf from '@tensorflow/tfjs-core';
 import Svg, { Circle, Line, G, Rect } from 'react-native-svg';
 
@@ -15,18 +15,51 @@ export type Dims = { width: number; height: number };
 
 export { PoseT, Keypoint };
 
-export const MODEL_FILE = 'posenet_mv1_075_float_from_checkpoints.tflite';
-export const MODEL_INPUT_SIZE = 337;
-export const MODEL_OUTPUT_STRIDE = 16;
+// copied from posenet_model.d.ts because it is not exported
+type PoseNetInputResolution =
+  | 161
+  | 193
+  | 257
+  | 289
+  | 321
+  | 337 // <- added
+  | 353
+  | 385
+  | 417
+  | 449
+  | 481
+  | 513
+  | 801
+  | 1217;
 
-// java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
-// export const MODEL_FILE = 'multi_person_mobilenet_v1_075_float.tflite';
-// export const MODEL_INPUT_SIZE = 353; // whoops this is actually 353x257
-// export const MODEL_OUTPUT_STRIDE = 16;
+type Model = {
+  file: string;
+  inputSize: PoseNetInputResolution;
+  outputStride: PoseNetOutputStride;
+};
 
-// export const MODEL_FILE = 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite';
-// export const MODEL_INPUT_SIZE = 257;
-// export const MODEL_OUTPUT_STRIDE = 32;
+const Model337: Model = {
+  file: 'posenet_mv1_075_float_from_checkpoints.tflite',
+  inputSize: 337,
+  outputStride: 16,
+};
+
+const Model257: Model = {
+  file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
+  inputSize: 257,
+  outputStride: 32,
+};
+
+// DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
+const Model353: Model = {
+  file: 'multi_person_mobilenet_v1_075_float.tflite',
+  inputSize: 353, // whoops this is actually 353x257
+  outputStride: 16,
+};
+
+export const getModel = (): Model => {
+  return Model337;
+};
 
 const reindexPoseByPart = (
   pose: PoseT
@@ -154,17 +187,17 @@ export const Pose: React.FunctionComponent<
 
 type DecodingMethod = 'single' | 'multiple';
 
-const decodeSingle = async (res): Promise<PoseT[]> => {
+const decodeSingle = async (model: Model, res): Promise<PoseT[]> => {
   const [scores, offsets] = res;
   const [scoreTensor, offsetTensor] = await Promise.all([
     tf.tensor(scores).squeeze() as tf.Tensor3D,
     tf.tensor(offsets).squeeze() as tf.Tensor3D,
   ]);
-  const pose = await decodeSinglePose(scoreTensor, offsetTensor, MODEL_OUTPUT_STRIDE);
+  const pose = await decodeSinglePose(scoreTensor, offsetTensor, model.outputStride);
   return [pose];
 };
 
-const decodeMulti = async (res): Promise<PoseT[]> => {
+const decodeMulti = async (model: Model, res): Promise<PoseT[]> => {
   const [scores, offsets, dispFwd, dispBwd] = res;
   const [scoreTensor, offsetTensor, dispFwdTensor, dispBwdTensor] = await Promise.all([
     (tf.tensor(scores).squeeze() as tf.Tensor3D).buffer(),
@@ -177,18 +210,22 @@ const decodeMulti = async (res): Promise<PoseT[]> => {
     offsetTensor,
     dispFwdTensor,
     dispBwdTensor,
-    MODEL_OUTPUT_STRIDE,
+    model.outputStride,
     1 // numPoses
   );
 };
 
-export const decodePoses = async (decodingMethod: DecodingMethod, res): Promise<PoseT[]> => {
+export const decodePoses = async (
+  decodingMethod: DecodingMethod,
+  model: Model,
+  res
+): Promise<PoseT[]> => {
   // webgl not available on pixel 3a atleast
   await tf.setBackend('cpu');
   if (decodingMethod == 'single') {
-    return decodeSingle(res);
+    return decodeSingle(model, res);
   } else {
-    return decodeMulti(res);
+    return decodeMulti(model, res);
   }
 };
 

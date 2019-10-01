@@ -1,18 +1,8 @@
 import * as React from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  Platform,
-  Button,
-  Image,
-  Dimensions,
-} from 'react-native';
-import HTML from 'react-native-render-html';
+import { StyleSheet, View, ScrollView, Platform, Button, Image, Dimensions } from 'react-native';
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
-import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
+import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
 import Overlay from './Overlay';
 
 let tflite = new Tflite();
@@ -58,7 +48,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
 
   constructor(props: {}) {
     super(props);
-    tflite.loadModel({ model: MODEL_FILE });
+    tflite.loadModel({ model: getModel().file });
   }
 
   getImageViewDims = (): Dims => {
@@ -70,7 +60,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
   };
 
   handleImagePoseResponse = async res => {
-    const poses = await decodePoses('multiple', res);
+    const poses = await decodePoses('multiple', getModel(), res);
     if (poses && poses.length) {
       this.setState({ poses: poses });
     }
@@ -79,9 +69,9 @@ export default class StaticImagePose extends React.Component<{}, State> {
   onSelectImage = () => {
     ImagePicker.launchImageLibrary({}, response => {
       if (response.didCancel) {
-        this.log('Cancelled');
+        console.log('Cancelled');
       } else if (response.error) {
-        this.log('Error');
+        console.log('Error');
       } else {
         var path = Platform.OS === 'ios' ? response.uri : 'file://' + response.path;
         const [height, width] = response.isVertical
@@ -94,7 +84,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
           image: { path, rotation, width: width, height: height },
         });
         tflite.runModelOnImageMulti({ path, rotation }, async (err, res) => {
-          if (err) this.log(err);
+          if (err) console.log(err);
           else {
             await this.handleImagePoseResponse(res);
           }
@@ -103,28 +93,11 @@ export default class StaticImagePose extends React.Component<{}, State> {
     });
   };
 
-  log = (msg: string | object) => {
-    this.setState({ msg: msg });
-  };
-
   _getSelectButton = () => {
     return (
       <View style={{ margin: 25 }}>
         <Button title="Select Image" onPress={this.onSelectImage} />
       </View>
-    );
-  };
-
-  _debugMsg = () => {
-    if (!__DEV__) {
-      return null;
-    }
-    return this.state.msg ? (
-      <View style={{ margin: 20 }}>
-        <HTML html={`<pre>${JSON.stringify([this.state.msg], null, 2)}</pre>`} />
-      </View>
-    ) : (
-      <Text>No msg</Text>
     );
   };
 
@@ -140,13 +113,13 @@ export default class StaticImagePose extends React.Component<{}, State> {
       <Pose
         poseIn={this.state.poses[0]}
         imageDims={scaledImageDims}
-        modelInputSize={MODEL_INPUT_SIZE}
+        modelInputSize={getModel().inputSize}
         rotation={0}
         scoreThreshold={0.25}
       />
     ) : null;
 
-    const imageView = (
+    return (
       <View>
         <Image
           source={{ uri: this.state.image.path }}
@@ -160,17 +133,9 @@ export default class StaticImagePose extends React.Component<{}, State> {
           style={{
             top: 0,
             left: 0,
-            ...scaledImageDims,
           }}>
           {poseOverlay}
         </Overlay>
-      </View>
-    );
-
-    return (
-      <View>
-        {imageView}
-        {this._debugMsg()}
       </View>
     );
   };
