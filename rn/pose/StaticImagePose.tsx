@@ -13,6 +13,7 @@ import HTML from 'react-native-render-html';
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE } from './Pose';
+import Overlay from './Overlay';
 
 let tflite = new Tflite();
 
@@ -155,15 +156,14 @@ export default class StaticImagePose extends React.Component<{}, State> {
           resizeMode="contain"
           resizeMethod="scale"
         />
-        <View
+        <Overlay
           style={{
-            position: 'absolute',
             top: 0,
             left: 0,
             ...scaledImageDims,
           }}>
           {poseOverlay}
-        </View>
+        </Overlay>
       </View>
     );
 

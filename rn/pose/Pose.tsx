@@ -7,7 +7,7 @@ import {
   Keypoint,
   Pose as PoseT,
 } from '@tensorflow-models/posenet';
-
+import Overlay from './Overlay';
 import * as tf from '@tensorflow/tfjs-core';
 import Svg, { Circle, Line, G, Rect } from 'react-native-svg';
 
@@ -139,11 +139,6 @@ export const Pose: React.FunctionComponent<
 
   return (
     <Svg
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-      }}
       width={imageDims.width}
       height={imageDims.height}
       viewBox={`0 0 ${imageDims.width} ${imageDims.height}`}

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 type State = {
   secondsLeft: number;
@@ -36,5 +36,3 @@ export default class Timer extends React.Component<Props, State> {
     );
   }
 }
-
-const styles = StyleSheet.create({});

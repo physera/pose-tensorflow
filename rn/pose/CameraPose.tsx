@@ -13,9 +13,9 @@ import {
   MODEL_INPUT_SIZE,
   MODEL_OUTPUT_STRIDE,
   matchingTargetKeypoints,
-  scaleForMatch,
 } from './Pose';
 import Timer from './Timer';
+import Overlay from './Overlay';
 
 type Timers =
   | 'responseReceived'
@@ -143,33 +143,31 @@ export default class CameraPose extends React.Component<Props, State> {
 
   _flipCamera = () => {
     return (
-      <View
+      <Overlay
         style={{
-          position: 'absolute',
+          margin: 5,
           top: 0,
           left: 0,
-          margin: 5,
         }}>
         <Button
           title="Flip"
           color="pink"
           onPress={() => this.setState({ facingFront: !this.state.facingFront })}
         />
-      </View>
+      </Overlay>
     );
   };
 
   _targetTimer = () => {
     if (this.state.recordingTargetPose == 'timer') {
       return (
-        <View
+        <Overlay
           style={{
-            position: 'absolute',
             top: 0,
             right: 0,
           }}>
           <Timer onComplete={() => this.setState({ recordingTargetPose: 'ready' })} />
-        </View>
+        </Overlay>
       );
     }
   };
@@ -215,13 +213,10 @@ export default class CameraPose extends React.Component<Props, State> {
       : {};
 
     return (
-      <View
+      <Overlay
         style={{
-          position: 'absolute',
           top: 0,
           left: 0,
-          width: this.state.cameraView.width,
-          height: this.state.cameraView.height,
           opacity: opacity,
         }}>
         <Pose
@@ -233,7 +228,7 @@ export default class CameraPose extends React.Component<Props, State> {
           highlightParts={partsToHighlight}
           {...displayOptions}
         />
-      </View>
+      </Overlay>
     );
   };
 
@@ -300,9 +295,8 @@ export default class CameraPose extends React.Component<Props, State> {
   _matchLevel = () => {
     const matchFraction = this.state.targetMatch.keypoints.length / this.state.targetMatch.total;
     return this.state.targetMatch.total ? (
-      <View
+      <Overlay
         style={{
-          position: 'absolute',
           bottom: 0,
           left: 0,
           height: 50,
