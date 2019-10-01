@@ -2,7 +2,19 @@ import * as React from 'react';
 import { StyleSheet, Text, View, Dimensions, Button } from 'react-native';
 import FillToAspectRatio from './FillToAspectRatio';
 import { RNCamera } from 'react-native-camera';
-import { Pose, PoseT, Dims, MODEL_FILE, MODEL_INPUT_SIZE, MODEL_OUTPUT_STRIDE } from './Pose';
+import Slider from '@react-native-community/slider';
+import {
+  Pose,
+  PoseDisplayOptions,
+  PoseT,
+  Keypoint,
+  Dims,
+  MODEL_FILE,
+  MODEL_INPUT_SIZE,
+  MODEL_OUTPUT_STRIDE,
+  matchingTargetKeypoints,
+  scaleForMatch,
+} from './Pose';
 import Timer from './Timer';
 
 type Timers =
@@ -20,11 +32,13 @@ type RecordingTargetPose = 'timer' | 'ready' | 'off';
 type State = {
   poses: PoseT[] | null;
   targetPose: PoseT | null;
+  targetMatch: { keypoints: Keypoint[]; total: number | null };
   recordingTargetPose: RecordingTargetPose;
   cameraView: Dims | null;
   rotation: number;
   facingFront: boolean;
   timers: { [key in Timers]?: number } | null;
+  zoom: number;
 };
 
 type Props = {
@@ -43,10 +57,12 @@ export default class CameraPose extends React.Component<Props, State> {
     poses: null,
     targetPose: null,
     recordingTargetPose: 'off',
+    targetMatch: { keypoints: [], total: null },
     cameraView: null,
     timers: null,
     facingFront: true,
     rotation: 0,
+    zoom: 0,
   };
   cameraRef: any;
 
@@ -60,13 +76,26 @@ export default class CameraPose extends React.Component<Props, State> {
     });
   }
 
-  _maybeRecordTargetPose = (poses: PoseT[]): void => {
+  _maybeRecordTargetPose = (pose: PoseT): void => {
     if (this.state.recordingTargetPose == 'ready') {
-      this.setState({ recordingTargetPose: 'off', targetPose: poses[0] });
-      this.cameraRef.pausePreview();
-      setTimeout(() => {
-        this.cameraRef.resumePreview();
-      }, 3 * 1000);
+      this.setState({
+        recordingTargetPose: 'off',
+        targetPose: pose,
+        targetMatch: { total: null, keypoints: [] },
+      });
+    }
+  };
+
+  _maybeCompareToTargetPose = (pose: PoseT): void => {
+    if (this.state.recordingTargetPose == 'off' && this.state.targetPose) {
+      const [keypoints, total] = matchingTargetKeypoints(
+        this.state.targetPose,
+        pose,
+        0.25,
+        0.25,
+        MODEL_INPUT_SIZE
+      );
+      this.setState({ targetMatch: { keypoints, total } });
     }
   };
 
@@ -90,7 +119,8 @@ export default class CameraPose extends React.Component<Props, State> {
     const width = evt.dimensions.width * evt.scale.scaleX;
     const height = evt.dimensions.height * evt.scale.scaleY;
 
-    this._maybeRecordTargetPose(poses);
+    this._maybeRecordTargetPose(poses[0]);
+    this._maybeCompareToTargetPose(poses[0]);
     this.setState({
       poses: poses,
       cameraView: {
@@ -164,7 +194,26 @@ export default class CameraPose extends React.Component<Props, State> {
     );
   };
 
-  _poseOverlay = ({ pose, opacity }: { pose: PoseT; opacity: number }) => {
+  _poseOverlay = ({
+    pose,
+    opacity = 1.0,
+    highlightParts = true,
+    ...displayOptions
+  }: {
+    pose: PoseT;
+    opacity?: number | null;
+    highlightParts?: boolean;
+  } & PoseDisplayOptions) => {
+    const partsToHighlight = highlightParts
+      ? this.state.targetMatch.keypoints.reduce(
+          (result: { [key: string]: boolean }, kp: Keypoint) => {
+            result[kp.part] = true;
+            return result;
+          },
+          {}
+        )
+      : {};
+
     return (
       <View
         style={{
@@ -180,6 +229,9 @@ export default class CameraPose extends React.Component<Props, State> {
           imageDims={this.state.cameraView}
           modelInputSize={MODEL_INPUT_SIZE}
           rotation={this.state.rotation}
+          scoreThreshold={0.25}
+          highlightParts={partsToHighlight}
+          {...displayOptions}
         />
       </View>
     );
@@ -194,13 +246,13 @@ export default class CameraPose extends React.Component<Props, State> {
             this.cameraRef = ref;
           }}
           style={{ flex: 1 }}
+          zoom={this.state.zoom}
           type={
             this.state.facingFront ? RNCamera.Constants.Type.front : RNCamera.Constants.Type.back
           }
           defaultVideoQuality={RNCamera.Constants.VideoQuality['4:3']}
           autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
           ratio="4:3" // default
-          zoom={0}
           modelParams={{
             file: MODEL_FILE,
             mean: MODEL_IMAGE_MEAN,
@@ -215,38 +267,71 @@ export default class CameraPose extends React.Component<Props, State> {
   };
 
   _lagTimers = () => {
-    if (!__DEV__) {
-      return null;
+    if (__DEV__) {
+      const timeNow = Date.now();
+      return (
+        <View>
+          {this.state.timers && this.state.timers.responseReceived ? (
+            <Text>Since response: {timeNow - this.state.timers.responseReceived}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.inference ? (
+            <Text>Inference: {this.state.timers.inference}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.imageTime ? (
+            <Text>Lag-image: {timeNow - this.state.timers.imageTime}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.inferenceBeginTime ? (
+            <Text>Lag-inference-begin: {timeNow - this.state.timers.inferenceBeginTime}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.inferenceEndTime ? (
+            <Text>Lag-inference-end: {timeNow - this.state.timers.inferenceEndTime}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.serializationBeginTime ? (
+            <Text>Lag-serial: {timeNow - this.state.timers.serializationBeginTime}ms</Text>
+          ) : null}
+          {this.state.timers && this.state.timers.serializationEndTime ? (
+            <Text>Lag-serial-end: {timeNow - this.state.timers.serializationEndTime}ms</Text>
+          ) : null}
+        </View>
+      );
     }
-    const timeNow = Date.now();
-    return (
-      <View>
-        {this.state.timers && this.state.timers.responseReceived ? (
-          <Text>Since response: {timeNow - this.state.timers.responseReceived}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.inference ? (
-          <Text>Inference: {this.state.timers.inference}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.imageTime ? (
-          <Text>Lag-image: {timeNow - this.state.timers.imageTime}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.inferenceBeginTime ? (
-          <Text>Lag-inference-begin: {timeNow - this.state.timers.inferenceBeginTime}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.inferenceEndTime ? (
-          <Text>Lag-inference-end: {timeNow - this.state.timers.inferenceEndTime}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.serializationBeginTime ? (
-          <Text>Lag-serial: {timeNow - this.state.timers.serializationBeginTime}ms</Text>
-        ) : null}
-        {this.state.timers && this.state.timers.serializationEndTime ? (
-          <Text>Lag-serial-end: {timeNow - this.state.timers.serializationEndTime}ms</Text>
-        ) : null}
-      </View>
-    );
+  };
+
+  _matchLevel = () => {
+    const matchFraction = this.state.targetMatch.keypoints.length / this.state.targetMatch.total;
+    return this.state.targetMatch.total ? (
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          height: 50,
+          width: `${matchFraction * 100}%`,
+          backgroundColor: `hsl(${matchFraction * 120}, 100%, 50%)`,
+          borderColor: 'red',
+          borderWidth: matchFraction == 1 ? 20 : 0,
+        }}
+      />
+    ) : null;
   };
 
   render() {
+    const pose =
+      this.state.poses && this.state.cameraView
+        ? this._poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
+        : null;
+
+    const targetPose =
+      this.state.targetPose && this.state.recordingTargetPose == 'off' && this.state.cameraView
+        ? this._poseOverlay({
+            pose: this.state.targetPose,
+            opacity: 0.5,
+            highlightParts: false,
+            showBoundingBox: false,
+            poseColor: 'white',
+          })
+        : null;
+
     const cameraView = (
       <View
         style={{
@@ -254,20 +339,23 @@ export default class CameraPose extends React.Component<Props, State> {
           height: Dimensions.get('window').width * (4.0 / 3.0),
         }}>
         {this._camera()}
-        {this.state.poses && this.state.cameraView
-          ? this._poseOverlay({ pose: this.state.poses[0], opacity: 1.0 })
-          : null}
-        {this.state.targetPose && this.state.recordingTargetPose == 'off' && this.state.cameraView
-          ? this._poseOverlay({ pose: this.state.targetPose, opacity: 0.5 })
-          : null}
+        {pose}
+        {targetPose}
         {this._flipCamera()}
         {this._targetTimer()}
+        {this._matchLevel()}
       </View>
     );
-
     return (
       <View style={styles.container}>
         {cameraView}
+        <Slider
+          style={{ width: '80%', height: 25, marginTop: 10 }}
+          minimumValue={0}
+          maximumValue={1}
+          step={0.1}
+          onSlidingComplete={(v: number) => this.setState({ zoom: v })}
+        />
         <View style={{ margin: 10 }}>{this._targetPoseButton()}</View>
         {this._lagTimers()}
       </View>

@@ -141,6 +141,7 @@ export default class StaticImagePose extends React.Component<{}, State> {
         imageDims={scaledImageDims}
         modelInputSize={MODEL_INPUT_SIZE}
         rotation={0}
+        scoreThreshold={0.25}
       />
     ) : null;
 
