@@ -36,18 +36,24 @@ type Model = {
   file: string;
   inputSize: PoseNetInputResolution;
   outputStride: PoseNetOutputStride;
+  mean: number;
+  std: number;
 };
 
 const Model337: Model = {
   file: 'posenet_mv1_075_float_from_checkpoints.tflite',
   inputSize: 337,
   outputStride: 16,
+  mean: 127.5,
+  std: 127.5,
 };
 
 const Model257: Model = {
   file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
   inputSize: 257,
   outputStride: 32,
+  mean: 127.5,
+  std: 127.5,
 };
 
 // DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
@@ -55,6 +61,8 @@ const Model353: Model = {
   file: 'multi_person_mobilenet_v1_075_float.tflite',
   inputSize: 353, // whoops this is actually 353x257
   outputStride: 16,
+  mean: 127.5,
+  std: 127.5,
 };
 
 export const getModel = (): Model => {

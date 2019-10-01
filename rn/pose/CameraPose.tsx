@@ -46,9 +46,6 @@ type Props = {
   registerOnLeave: Function;
 };
 
-const MODEL_IMAGE_MEAN = 127.5;
-const MODEL_IMAGE_STD = 127.5;
-
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
   state: State = {
@@ -247,8 +244,6 @@ export default class CameraPose extends React.Component<Props, State> {
           autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
           ratio="4:3" // default
           modelParams={{
-            mean: MODEL_IMAGE_MEAN,
-            std: MODEL_IMAGE_STD,
             freqms: 0,
             ...getModel(),
           }}
@@ -340,18 +335,24 @@ export default class CameraPose extends React.Component<Props, State> {
     return (
       <View style={styles.container}>
         {cameraView}
-        <Slider
-          style={{ width: '80%', height: 25, marginTop: 10 }}
-          minimumValue={0}
-          maximumValue={1}
-          step={0.1}
-          onSlidingComplete={(v: number) => this.setState({ zoom: v })}
-        />
+        {this._zoomSlider()}
         <View style={{ margin: 10 }}>{this._targetPoseButton()}</View>
         {this._lagTimers()}
       </View>
     );
   }
+
+  _zoomSlider = () => {
+    return (
+      <Slider
+        style={{ width: '80%', height: 25, marginTop: 10 }}
+        minimumValue={0}
+        maximumValue={1}
+        step={0.1}
+        onSlidingComplete={(v: number) => this.setState({ zoom: v })}
+      />
+    );
+  };
 }
 
 const styles = StyleSheet.create({
