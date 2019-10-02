@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { StyleSheet, Text, View, Dimensions, Button } from 'react-native';
-import FillToAspectRatio from './FillToAspectRatio';
 import { RNCamera } from 'react-native-camera';
 import Slider from '@react-native-community/slider';
 import {
@@ -34,17 +33,110 @@ type State = {
   recordingTargetPose: RecordingTargetPose;
   cameraView: Dims | null;
   rotation: number;
-  facingFront: boolean;
   timers: { [key in Timers]?: number } | null;
-  zoom: number;
 };
 
 type Props = {
   routeKey: string;
   startPaused: boolean;
-  registerOnEnter: Function;
-  registerOnLeave: Function;
+  registerOnEnter: (key: string, fn: () => void) => void;
+  registerOnLeave: (key: string, fn: () => void) => void;
 };
+
+type CameraViewProps = {
+  startPaused: boolean;
+  onCameraRef: (ref: any) => void;
+  onPose: (response: any) => void;
+};
+
+type CameraViewState = {
+  facingFront: boolean;
+  zoom: number;
+};
+
+class CameraView extends React.Component<CameraViewProps, CameraViewState> {
+  static defaultProps = { startPaused: true };
+  state: CameraViewState = {
+    facingFront: true,
+    zoom: 0,
+  };
+
+  _flipCamera = () => {
+    return (
+      <Overlay
+        style={{
+          margin: 5,
+          top: 0,
+          left: 0,
+        }}>
+        <Button
+          title="Flip"
+          color="pink"
+          onPress={() => this.setState({ facingFront: !this.state.facingFront })}
+        />
+      </Overlay>
+    );
+  };
+
+  _camera = () => {
+    // autoFocusPointOfInterest: note that coordinates are in landscape with home to right
+    return (
+      <View
+        style={{
+          width: Dimensions.get('window').width,
+          height: Dimensions.get('window').width * (4.0 / 3.0),
+        }}>
+        <RNCamera
+          ref={this.props.onCameraRef}
+          style={{
+            flex: 1,
+          }}
+          zoom={this.state.zoom}
+          type={
+            this.state.facingFront ? RNCamera.Constants.Type.front : RNCamera.Constants.Type.back
+          }
+          defaultVideoQuality={RNCamera.Constants.VideoQuality['4:3']}
+          autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
+          ratio="4:3" // default
+          modelParams={{
+            freqms: 0,
+            ...getModel(),
+          }}
+          onModelProcessed={this.props.onPose}
+        />
+      </View>
+    );
+  };
+
+  _zoomSlider = () => {
+    return (
+      <Slider
+        style={{ width: '80%', height: 25, marginTop: 10 }}
+        minimumValue={0}
+        maximumValue={1}
+        step={0.1}
+        onSlidingComplete={(v: number) => this.setState({ zoom: v })}
+      />
+    );
+  };
+
+  render() {
+    return (
+      <View
+        style={{
+          alignItems: 'center',
+          width: '100%',
+        }}>
+        <View>
+          {this._camera()}
+          {this._flipCamera()}
+          {this.props.children}
+        </View>
+        {this._zoomSlider()}
+      </View>
+    );
+  }
+}
 
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
@@ -55,9 +147,7 @@ export default class CameraPose extends React.Component<Props, State> {
     targetMatch: { keypoints: [], total: null },
     cameraView: null,
     timers: null,
-    facingFront: true,
     rotation: 0,
-    zoom: 0,
   };
   cameraRef: any;
 
@@ -136,23 +226,6 @@ export default class CameraPose extends React.Component<Props, State> {
     });
   };
 
-  _flipCamera = () => {
-    return (
-      <Overlay
-        style={{
-          margin: 5,
-          top: 0,
-          left: 0,
-        }}>
-        <Button
-          title="Flip"
-          color="pink"
-          onPress={() => this.setState({ facingFront: !this.state.facingFront })}
-        />
-      </Overlay>
-    );
-  };
-
   _targetTimer = () => {
     if (this.state.recordingTargetPose == 'timer') {
       return (
@@ -227,32 +300,6 @@ export default class CameraPose extends React.Component<Props, State> {
     );
   };
 
-  _camera = () => {
-    // autoFocusPointOfInterest: note that coordinates are in landscape with home to right
-    return (
-      <FillToAspectRatio>
-        <RNCamera
-          ref={ref => {
-            this.cameraRef = ref;
-          }}
-          style={{ flex: 1 }}
-          zoom={this.state.zoom}
-          type={
-            this.state.facingFront ? RNCamera.Constants.Type.front : RNCamera.Constants.Type.back
-          }
-          defaultVideoQuality={RNCamera.Constants.VideoQuality['4:3']}
-          autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
-          ratio="4:3" // default
-          modelParams={{
-            freqms: 0,
-            ...getModel(),
-          }}
-          onModelProcessed={this.handleVideoPoseResponse}
-        />
-      </FillToAspectRatio>
-    );
-  };
-
   _lagTimers = () => {
     if (__DEV__) {
       const timeNow = Date.now();
@@ -318,41 +365,24 @@ export default class CameraPose extends React.Component<Props, State> {
           })
         : null;
 
-    const cameraView = (
-      <View
-        style={{
-          width: Dimensions.get('window').width,
-          height: Dimensions.get('window').width * (4.0 / 3.0),
-        }}>
-        {this._camera()}
-        {pose}
-        {targetPose}
-        {this._flipCamera()}
-        {this._targetTimer()}
-        {this._matchLevel()}
-      </View>
-    );
     return (
       <View style={styles.container}>
-        {cameraView}
-        {this._zoomSlider()}
+        <CameraView
+          startPaused={this.props.startPaused}
+          onPose={this.handleVideoPoseResponse}
+          onCameraRef={ref => {
+            this.cameraRef = ref;
+          }}>
+          {pose}
+          {targetPose}
+          {this._targetTimer()}
+          {this._matchLevel()}
+        </CameraView>
         <View style={{ margin: 10 }}>{this._targetPoseButton()}</View>
         {this._lagTimers()}
       </View>
     );
   }
-
-  _zoomSlider = () => {
-    return (
-      <Slider
-        style={{ width: '80%', height: 25, marginTop: 10 }}
-        minimumValue={0}
-        maximumValue={1}
-        step={0.1}
-        onSlidingComplete={(v: number) => this.setState({ zoom: v })}
-      />
-    );
-  };
 }
 
 const styles = StyleSheet.create({

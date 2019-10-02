@@ -29,11 +29,11 @@ export default class App extends React.Component<{}, State> {
     });
   };
 
-  _registerOnLeaveCallback = (key: string, fn: Function) => {
+  _registerOnLeaveCallback = (key: string, fn: () => void) => {
     this._registerCallback('onLeave', key, fn);
   };
 
-  _registerOnEnterCallback = (key: string, fn: Function) => {
+  _registerOnEnterCallback = (key: string, fn: () => void) => {
     this._registerCallback('onEnter', key, fn);
   };
 

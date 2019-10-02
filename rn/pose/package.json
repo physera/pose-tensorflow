@@ -24,6 +24,7 @@
     "react-native-render-html": "^4.1.2",
     "react-native-svg": "^9.5.3",
     "react-native-tab-view": "^2.9.0",
+    "react-native-vector-icons": "^6.6.0",
     "tflite-react-native": "file:.yalc/tflite-react-native"
   },
   "devDependencies": {

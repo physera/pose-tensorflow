@@ -4,6 +4,7 @@ import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
 import Overlay from './Overlay';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 let tflite = new Tflite();
 
@@ -96,7 +97,9 @@ export default class StaticImagePose extends React.Component<{}, State> {
   _getSelectButton = () => {
     return (
       <View style={{ margin: 25 }}>
-        <Button title="Select Image" onPress={this.onSelectImage} />
+        <Icon.Button name="camera-roll" onPress={this.onSelectImage}>
+          Select image
+        </Icon.Button>
       </View>
     );
   };
