@@ -13,40 +13,58 @@ import {
 } from './Pose';
 import Timer from './Timer';
 import Overlay from './Overlay';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-type Timers =
-  | 'responseReceived'
-  | 'inference'
-  | 'imageTime'
-  | 'inferenceBeginTime'
-  | 'inferenceEndTime'
-  | 'serializationBeginTime'
-  | 'serializationEndTime'
-  | 'other';
-
-type RecordingTargetPose = 'timer' | 'ready' | 'off';
-
-type State = {
-  poses: PoseT[] | null;
-  targetPose: PoseT | null;
-  targetMatch: { keypoints: Keypoint[]; total: number | null };
-  recordingTargetPose: RecordingTargetPose;
-  cameraView: Dims | null;
-  rotation: number;
-  timers: { [key in Timers]?: number } | null;
+type CameraViewToolbarProps = {
+  onZoom: (v: number) => void;
+  onFlip: () => void;
 };
 
-type Props = {
-  routeKey: string;
-  startPaused: boolean;
-  registerOnEnter: (key: string, fn: () => void) => void;
-  registerOnLeave: (key: string, fn: () => void) => void;
-};
+class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
+  _flipCamera = () => {
+    return (
+      <Icon.Button
+        name="switch-camera"
+        onPress={this.props.onFlip}
+        borderRadius={0}
+        iconStyle={{ marginRight: 5 }}
+      />
+    );
+  };
+
+  _zoomSlider = () => {
+    return (
+      <Slider
+        style={{ width: '80%', height: 25, marginTop: 10 }}
+        minimumValue={0}
+        maximumValue={1}
+        step={0.1}
+        onSlidingComplete={this.props.onZoom}
+      />
+    );
+  };
+
+  render() {
+    return (
+      <View
+        style={{
+          width: '100%',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+        }}>
+        {this._flipCamera()}
+        {this._zoomSlider()}
+        {this.props.children}
+      </View>
+    );
+  }
+}
 
 type CameraViewProps = {
   startPaused: boolean;
   onCameraRef: (ref: any) => void;
   onPose: (response: any) => void;
+  toolbarButtons?: JSX.Element[];
 };
 
 type CameraViewState = {
@@ -59,23 +77,6 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
   state: CameraViewState = {
     facingFront: true,
     zoom: 0,
-  };
-
-  _flipCamera = () => {
-    return (
-      <Overlay
-        style={{
-          margin: 5,
-          top: 0,
-          left: 0,
-        }}>
-        <Button
-          title="Flip"
-          color="pink"
-          onPress={() => this.setState({ facingFront: !this.state.facingFront })}
-        />
-      </Overlay>
-    );
   };
 
   _camera = () => {
@@ -108,18 +109,6 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
     );
   };
 
-  _zoomSlider = () => {
-    return (
-      <Slider
-        style={{ width: '80%', height: 25, marginTop: 10 }}
-        minimumValue={0}
-        maximumValue={1}
-        step={0.1}
-        onSlidingComplete={(v: number) => this.setState({ zoom: v })}
-      />
-    );
-  };
-
   render() {
     return (
       <View
@@ -129,14 +118,46 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
         }}>
         <View>
           {this._camera()}
-          {this._flipCamera()}
           {this.props.children}
         </View>
-        {this._zoomSlider()}
+        <CameraViewToolbar
+          onZoom={(v: number) => this.setState({ zoom: v })}
+          onFlip={() => this.setState({ facingFront: !this.state.facingFront })}>
+          {this.props.toolbarButtons}
+        </CameraViewToolbar>
       </View>
     );
   }
 }
+
+type Timers =
+  | 'responseReceived'
+  | 'inference'
+  | 'imageTime'
+  | 'inferenceBeginTime'
+  | 'inferenceEndTime'
+  | 'serializationBeginTime'
+  | 'serializationEndTime'
+  | 'other';
+
+type RecordingTargetPose = 'timer' | 'ready' | 'off';
+
+type State = {
+  poses: PoseT[] | null;
+  targetPose: PoseT | null;
+  targetMatch: { keypoints: Keypoint[]; total: number | null };
+  recordingTargetPose: RecordingTargetPose;
+  viewDims: Dims | null;
+  rotation: number;
+  timers: { [key in Timers]?: number } | null;
+};
+
+type Props = {
+  routeKey: string;
+  startPaused: boolean;
+  registerOnEnter: (key: string, fn: () => void) => void;
+  registerOnLeave: (key: string, fn: () => void) => void;
+};
 
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
@@ -145,7 +166,7 @@ export default class CameraPose extends React.Component<Props, State> {
     targetPose: null,
     recordingTargetPose: 'off',
     targetMatch: { keypoints: [], total: null },
-    cameraView: null,
+    viewDims: null,
     timers: null,
     rotation: 0,
   };
@@ -208,7 +229,7 @@ export default class CameraPose extends React.Component<Props, State> {
     this._maybeCompareToTargetPose(poses[0]);
     this.setState({
       poses: poses,
-      cameraView: {
+      viewDims: {
         width: width,
         height: height,
       },
@@ -234,28 +255,31 @@ export default class CameraPose extends React.Component<Props, State> {
             top: 0,
             right: 0,
           }}>
-          <Timer onComplete={() => this.setState({ recordingTargetPose: 'ready' })} />
+          <Timer onComplete={() => this.setState({ recordingTargetPose: 'ready' })} seconds={3} />
         </Overlay>
       );
     }
   };
 
   _targetPoseButton = () => {
-    const [title, color] = (() => {
+    const color = (() => {
       if (this.state.recordingTargetPose != 'off') {
-        return ['Recording', 'orange'];
+        return 'red';
       } else if (this.state.targetPose) {
-        return ['Update target pose', 'brown'];
+        return 'green';
       } else {
-        return ['Record target pose', null];
+        return '#007AFF';
       }
     })();
 
     return (
-      <Button
-        title={title}
-        color={color}
+      <Icon.Button
+        name="accessibility"
         onPress={() => this.setState({ recordingTargetPose: 'timer' })}
+        borderRadius={0}
+        key="target-pose-button"
+        backgroundColor={color}
+        iconStyle={{ marginRight: 0 }}
       />
     );
   };
@@ -289,7 +313,7 @@ export default class CameraPose extends React.Component<Props, State> {
         }}>
         <Pose
           poseIn={pose}
-          imageDims={this.state.cameraView}
+          imageDims={this.state.viewDims}
           modelInputSize={getModel().inputSize}
           rotation={this.state.rotation}
           scoreThreshold={0.25}
@@ -350,12 +374,12 @@ export default class CameraPose extends React.Component<Props, State> {
 
   render() {
     const pose =
-      this.state.poses && this.state.cameraView
+      this.state.poses && this.state.viewDims
         ? this._poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
         : null;
 
     const targetPose =
-      this.state.targetPose && this.state.recordingTargetPose == 'off' && this.state.cameraView
+      this.state.targetPose && this.state.recordingTargetPose == 'off' && this.state.viewDims
         ? this._poseOverlay({
             pose: this.state.targetPose,
             opacity: 0.5,
@@ -372,13 +396,13 @@ export default class CameraPose extends React.Component<Props, State> {
           onPose={this.handleVideoPoseResponse}
           onCameraRef={ref => {
             this.cameraRef = ref;
-          }}>
+          }}
+          toolbarButtons={[this._targetPoseButton()]}>
           {pose}
           {targetPose}
           {this._targetTimer()}
           {this._matchLevel()}
         </CameraView>
-        <View style={{ margin: 10 }}>{this._targetPoseButton()}</View>
         {this._lagTimers()}
       </View>
     );
