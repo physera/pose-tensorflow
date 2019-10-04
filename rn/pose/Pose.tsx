@@ -73,7 +73,6 @@ const reindexPoseByPart = (
   pose: PoseT
 ): { score: number; keypoints: { [k: string]: Keypoint } } => {
   let reindexedKps = {};
-  console.log(pose.keypoints);
   for (const kp of pose.keypoints) {
     reindexedKps[kp.part] = kp;
   }
@@ -128,7 +127,6 @@ export const Pose: React.FunctionComponent<
   const pose = reindexPoseByPart(filterPoseByScore(poseIn, scoreThreshold));
   const strokeWidth = modelInputSize / 50;
   const radius = modelInputSize / 80;
-  console.log(pose);
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
     const color = highlightParts && highlightParts[kp.part] ? 'green' : 'pink';
     return (
@@ -290,8 +288,6 @@ export const matchingTargetKeypoints = (
 ): [Keypoint[], number] => {
   const targetPose = reindexPoseByPart(scaleForMatch(target, scoreThreshold, modelInputSize));
   const pose = reindexPoseByPart(scaleForMatch(candidate, scoreThreshold, modelInputSize, target));
-
-  console.log([targetPose, pose]);
   const matchingKeypoints = Object.values(targetPose.keypoints).filter((tkp: Keypoint): boolean => {
     const pkp = pose.keypoints[tkp.part];
     if (!pkp) {

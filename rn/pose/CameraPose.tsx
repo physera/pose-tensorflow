@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, Dimensions, Button } from 'react-native';
+import { StyleSheet, Text, View, Dimensions, Switch } from 'react-native';
 import { RNCamera } from 'react-native-camera';
 import Slider from '@react-native-community/slider';
 import {
@@ -14,32 +14,37 @@ import {
 import Timer from './Timer';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import * as MediaLibrary from 'expo-media-library';
 
 type CameraViewToolbarProps = {
+  disabled: boolean;
   onZoom: (v: number) => void;
   onFlip: () => void;
 };
 
 class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
-  _flipCamera = () => {
+  static defaultProps = { disabled: false };
+  flipCamera = () => {
     return (
       <Icon.Button
         name="switch-camera"
         onPress={this.props.onFlip}
         borderRadius={0}
-        iconStyle={{ marginRight: 5 }}
+        iconStyle={{ marginRight: 20, marginLeft: 20 }}
+        disabled={this.props.disabled}
       />
     );
   };
 
-  _zoomSlider = () => {
+  zoomSlider = () => {
     return (
       <Slider
-        style={{ width: '80%', height: 25, marginTop: 10 }}
+        style={{ minWidth: '30%' }}
         minimumValue={0}
         maximumValue={1}
         step={0.1}
         onSlidingComplete={this.props.onZoom}
+        disabled={this.props.disabled}
       />
     );
   };
@@ -51,9 +56,11 @@ class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
           width: '100%',
           flexDirection: 'row',
           justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'darkgrey',
         }}>
-        {this._flipCamera()}
-        {this._zoomSlider()}
+        {this.flipCamera()}
+        {this.zoomSlider()}
         {this.props.children}
       </View>
     );
@@ -62,6 +69,7 @@ class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
 
 type CameraViewProps = {
   startPaused: boolean;
+  isRecording: boolean;
   onCameraRef: (ref: any) => void;
   onPose: (response: any) => void;
   toolbarButtons?: JSX.Element[];
@@ -73,13 +81,13 @@ type CameraViewState = {
 };
 
 class CameraView extends React.Component<CameraViewProps, CameraViewState> {
-  static defaultProps = { startPaused: true };
+  static defaultProps = { startPaused: true, isRecording: false };
   state: CameraViewState = {
     facingFront: true,
     zoom: 0,
   };
 
-  _camera = () => {
+  camera = () => {
     // autoFocusPointOfInterest: note that coordinates are in landscape with home to right
     return (
       <View
@@ -117,14 +125,17 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
           width: '100%',
         }}>
         <View>
-          {this._camera()}
+          {this.camera()}
           {this.props.children}
         </View>
-        <CameraViewToolbar
-          onZoom={(v: number) => this.setState({ zoom: v })}
-          onFlip={() => this.setState({ facingFront: !this.state.facingFront })}>
-          {this.props.toolbarButtons}
-        </CameraViewToolbar>
+        <Overlay style={{ bottom: 0, left: 0, right: 0 }}>
+          <CameraViewToolbar
+            disabled={this.props.isRecording}
+            onZoom={(v: number) => this.setState({ zoom: v })}
+            onFlip={() => this.setState({ facingFront: !this.state.facingFront })}>
+            {this.props.toolbarButtons}
+          </CameraViewToolbar>
+        </Overlay>
       </View>
     );
   }
@@ -140,13 +151,19 @@ type Timers =
   | 'serializationEndTime'
   | 'other';
 
-type RecordingTargetPose = 'timer' | 'ready' | 'off';
+type CapturingTargetPose = 'timer' | 'ready' | 'off';
 
 type State = {
   poses: PoseT[] | null;
   targetPose: PoseT | null;
-  targetMatch: { keypoints: Keypoint[]; total: number | null };
-  recordingTargetPose: RecordingTargetPose;
+  targetMatch: {
+    keypoints: Keypoint[];
+    total: number | null;
+    success: boolean;
+    triggerVideoRecording: boolean;
+  };
+  capturingTargetPose: CapturingTargetPose;
+  isRecordingVideo: boolean;
   viewDims: Dims | null;
   rotation: number;
   timers: { [key in Timers]?: number } | null;
@@ -161,11 +178,16 @@ type Props = {
 
 export default class CameraPose extends React.Component<Props, State> {
   static defaultProps = { startPaused: true };
+  static VIDEO_RECORDING_DURATION = 20;
+  static KEYPOINT_SCORE_THRESHOLD = 0.25;
+  static MATCH_DISTANCE_THRESHOLD = 0.25;
+
   state: State = {
     poses: null,
     targetPose: null,
-    recordingTargetPose: 'off',
-    targetMatch: { keypoints: [], total: null },
+    capturingTargetPose: 'off',
+    targetMatch: { keypoints: [], total: null, success: false, triggerVideoRecording: false },
+    isRecordingVideo: false,
     viewDims: null,
     timers: null,
     rotation: 0,
@@ -182,30 +204,34 @@ export default class CameraPose extends React.Component<Props, State> {
     });
   }
 
-  _maybeRecordTargetPose = (pose: PoseT): void => {
-    if (this.state.recordingTargetPose == 'ready') {
+  maybeCaptureTargetPose = (pose: PoseT): void => {
+    if (this.state.capturingTargetPose == 'ready') {
       this.setState({
-        recordingTargetPose: 'off',
+        capturingTargetPose: 'off',
         targetPose: pose,
-        targetMatch: { total: null, keypoints: [] },
+        targetMatch: { keypoints: [], total: null, success: false, triggerVideoRecording: false },
       });
     }
   };
 
-  _maybeCompareToTargetPose = (pose: PoseT): void => {
-    if (this.state.recordingTargetPose == 'off' && this.state.targetPose) {
+  maybeCompareToTargetPose = async (pose: PoseT) => {
+    if (this.state.capturingTargetPose == 'off' && this.state.targetPose) {
       const [keypoints, total] = matchingTargetKeypoints(
         this.state.targetPose,
         pose,
-        0.25, // scoreThreshold
-        0.25, // distanceThreshold
+        CameraPose.KEYPOINT_SCORE_THRESHOLD,
+        CameraPose.MATCH_DISTANCE_THRESHOLD,
         getModel().inputSize
       );
-      this.setState({ targetMatch: { keypoints, total } });
+      const success = keypoints.length == total;
+      if (success && this.state.targetMatch.triggerVideoRecording && !this.state.isRecordingVideo) {
+        await this.beginVideoRecording();
+      }
+      this.setState({ targetMatch: { ...this.state.targetMatch, keypoints, total, success } });
     }
   };
 
-  handleVideoPoseResponse = async res => {
+  handleVideoPoseResponse = async (res: { nativeEvent: any }) => {
     const responseReceived = Date.now();
 
     const evt = res.nativeEvent;
@@ -225,8 +251,8 @@ export default class CameraPose extends React.Component<Props, State> {
     const width = evt.dimensions.width * evt.scale.scaleX;
     const height = evt.dimensions.height * evt.scale.scaleY;
 
-    this._maybeRecordTargetPose(poses[0]);
-    this._maybeCompareToTargetPose(poses[0]);
+    this.maybeCaptureTargetPose(poses[0]);
+    await this.maybeCompareToTargetPose(poses[0]);
     this.setState({
       poses: poses,
       viewDims: {
@@ -247,23 +273,37 @@ export default class CameraPose extends React.Component<Props, State> {
     });
   };
 
-  _targetTimer = () => {
-    if (this.state.recordingTargetPose == 'timer') {
+  captureTargetTimer = () => {
+    if (this.state.capturingTargetPose == 'timer') {
       return (
         <Overlay
           style={{
             top: 0,
             right: 0,
           }}>
-          <Timer onComplete={() => this.setState({ recordingTargetPose: 'ready' })} seconds={3} />
+          <Timer onComplete={() => this.setState({ capturingTargetPose: 'ready' })} seconds={3} />
         </Overlay>
       );
     }
   };
 
-  _targetPoseButton = () => {
+  recordingVideoTimer = () => {
+    if (this.state.isRecordingVideo) {
+      return (
+        <Overlay
+          style={{
+            top: 0,
+            right: 0,
+          }}>
+          <Timer seconds={CameraPose.VIDEO_RECORDING_DURATION} />
+        </Overlay>
+      );
+    }
+  };
+
+  captureTargetButton = () => {
     const color = (() => {
-      if (this.state.recordingTargetPose != 'off') {
+      if (this.state.capturingTargetPose != 'off') {
         return 'red';
       } else if (this.state.targetPose) {
         return 'green';
@@ -275,16 +315,17 @@ export default class CameraPose extends React.Component<Props, State> {
     return (
       <Icon.Button
         name="accessibility"
-        onPress={() => this.setState({ recordingTargetPose: 'timer' })}
+        onPress={() => this.setState({ capturingTargetPose: 'timer' })}
         borderRadius={0}
         key="target-pose-button"
         backgroundColor={color}
-        iconStyle={{ marginRight: 0 }}
+        iconStyle={{ marginRight: 20, marginLeft: 20 }}
+        disabled={this.state.isRecordingVideo}
       />
     );
   };
 
-  _poseOverlay = ({
+  poseOverlay = ({
     pose,
     opacity = 1.0,
     highlightParts = true,
@@ -316,7 +357,7 @@ export default class CameraPose extends React.Component<Props, State> {
           imageDims={this.state.viewDims}
           modelInputSize={getModel().inputSize}
           rotation={this.state.rotation}
-          scoreThreshold={0.25}
+          scoreThreshold={CameraPose.KEYPOINT_SCORE_THRESHOLD}
           highlightParts={partsToHighlight}
           {...displayOptions}
         />
@@ -324,7 +365,7 @@ export default class CameraPose extends React.Component<Props, State> {
     );
   };
 
-  _lagTimers = () => {
+  lagTimers = () => {
     if (__DEV__) {
       const timeNow = Date.now();
       return (
@@ -355,13 +396,16 @@ export default class CameraPose extends React.Component<Props, State> {
     }
   };
 
-  _matchLevel = () => {
+  matchLevel = () => {
     const matchFraction = this.state.targetMatch.keypoints.length / this.state.targetMatch.total;
-    return this.state.targetMatch.total ? (
+    return !this.state.isRecordingVideo &&
+      this.state.capturingTargetPose == 'off' &&
+      this.state.targetMatch.total ? (
       <Overlay
         style={{
-          bottom: 0,
+          top: 0,
           left: 0,
+          right: 0,
           height: 50,
           width: `${matchFraction * 100}%`,
           backgroundColor: `hsl(${matchFraction * 120}, 100%, 50%)`,
@@ -372,38 +416,110 @@ export default class CameraPose extends React.Component<Props, State> {
     ) : null;
   };
 
+  stopVideoRecording = () => {
+    if (this.state.isRecordingVideo) {
+      // this will resolve the promise
+      this.cameraRef.stopRecording();
+    }
+  };
+
+  markNotRecordingVideo = () => {
+    this.setState({
+      isRecordingVideo: false,
+      targetMatch: { ...this.state.targetMatch, triggerVideoRecording: false },
+    });
+  };
+
+  beginVideoRecording = async () => {
+    this.setState({ isRecordingVideo: true });
+    const { cacheUri } = await this.cameraRef.recordAsync({
+      maxDuration: CameraPose.VIDEO_RECORDING_DURATION,
+      captureAudio: false,
+      quality: RNCamera.Constants.VideoQuality['4:3'],
+    });
+
+    this.markNotRecordingVideo();
+
+    // Pose detection (I guess preview images stop) stops during recording
+    this.cameraRef.resumePreview();
+    this.handleRecordedVideo(cacheUri);
+  };
+
+  handleRecordedVideo = (cacheUri: string) => {
+    console.log(cacheUri);
+  };
+
+  recordVideoButton = () => {
+    const [name, onPress] = this.state.isRecordingVideo
+      ? ['stop', this.stopVideoRecording]
+      : ['videocam', this.beginVideoRecording];
+    return (
+      <Icon.Button
+        name={name}
+        onPress={onPress}
+        borderRadius={0}
+        iconStyle={{ marginLeft: 20, marginRight: 20 }}
+        key="record-video"
+      />
+    );
+  };
+
+  triggerOnTargetMatchSwitch = () => {
+    return (
+      <Switch
+        key="trigger-video"
+        onValueChange={(v: boolean) =>
+          this.setState({ targetMatch: { ...this.state.targetMatch, triggerVideoRecording: v } })
+        }
+        value={this.state.targetMatch.triggerVideoRecording}
+        disabled={this.state.isRecordingVideo}
+      />
+    );
+  };
+
+  pose = () => {
+    return !this.state.isRecordingVideo && this.state.poses && this.state.viewDims
+      ? this.poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
+      : null;
+  };
+
+  targetPose = () => {
+    return !this.state.isRecordingVideo &&
+      this.state.targetPose &&
+      this.state.capturingTargetPose == 'off' &&
+      this.state.viewDims
+      ? this.poseOverlay({
+          pose: this.state.targetPose,
+          opacity: 0.5,
+          highlightParts: false,
+          showBoundingBox: false,
+          poseColor: 'white',
+        })
+      : null;
+  };
+
   render() {
-    const pose =
-      this.state.poses && this.state.viewDims
-        ? this._poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
-        : null;
-
-    const targetPose =
-      this.state.targetPose && this.state.recordingTargetPose == 'off' && this.state.viewDims
-        ? this._poseOverlay({
-            pose: this.state.targetPose,
-            opacity: 0.5,
-            highlightParts: false,
-            showBoundingBox: false,
-            poseColor: 'white',
-          })
-        : null;
-
     return (
       <View style={styles.container}>
         <CameraView
           startPaused={this.props.startPaused}
           onPose={this.handleVideoPoseResponse}
+          isRecording={this.state.isRecordingVideo}
           onCameraRef={ref => {
             this.cameraRef = ref;
           }}
-          toolbarButtons={[this._targetPoseButton()]}>
-          {pose}
-          {targetPose}
-          {this._targetTimer()}
-          {this._matchLevel()}
+          toolbarButtons={[
+            this.captureTargetButton(),
+            this.recordVideoButton(),
+            this.triggerOnTargetMatchSwitch(),
+          ]}>
+          {this.pose()}
+          {this.targetPose()}
+          {this.captureTargetTimer()}
+          {this.recordingVideoTimer()}
+          {this.matchLevel()}
         </CameraView>
-        {this._lagTimers()}
+        <View style={{ marginTop: 10 }}>{this.lagTimers()}</View>
       </View>
     );
   }
