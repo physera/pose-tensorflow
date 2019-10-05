@@ -203,6 +203,8 @@ dependencies {
     } else {
       implementation jscFlavor
     }
+
+    apply from: file('../../node_modules/react-native-unimodules/gradle.groovy'); addUnimodulesDependencies()
 }
 
 // Run this once to be able to run the application with BUCK

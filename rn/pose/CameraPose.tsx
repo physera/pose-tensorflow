@@ -15,6 +15,7 @@ import Timer from './Timer';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as MediaLibrary from 'expo-media-library';
+import { TemporaryDirectoryPath } from 'react-native-fs';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -107,6 +108,7 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
           defaultVideoQuality={RNCamera.Constants.VideoQuality['4:3']}
           autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
           ratio="4:3" // default
+          captureAudio={false}
           modelParams={{
             freqms: 0,
             ...getModel(),
@@ -181,6 +183,7 @@ export default class CameraPose extends React.Component<Props, State> {
   static VIDEO_RECORDING_DURATION = 20;
   static KEYPOINT_SCORE_THRESHOLD = 0.25;
   static MATCH_DISTANCE_THRESHOLD = 0.25;
+  static ALBUM_NAME = 'posera';
 
   state: State = {
     poses: null,
@@ -431,22 +434,35 @@ export default class CameraPose extends React.Component<Props, State> {
   };
 
   beginVideoRecording = async () => {
+    await MediaLibrary.requestPermissionsAsync();
     this.setState({ isRecordingVideo: true });
-    const { cacheUri } = await this.cameraRef.recordAsync({
+
+    const path = TemporaryDirectoryPath + `/posera-${Date.now()}.mp4`;
+    const { uri } = await this.cameraRef.recordAsync({
       maxDuration: CameraPose.VIDEO_RECORDING_DURATION,
-      captureAudio: false,
       quality: RNCamera.Constants.VideoQuality['4:3'],
+      mute: true,
+      path,
     });
 
     this.markNotRecordingVideo();
 
     // Pose detection (I guess preview images stop) stops during recording
     this.cameraRef.resumePreview();
-    this.handleRecordedVideo(cacheUri);
+    await this.handleRecordedVideo(uri);
   };
 
-  handleRecordedVideo = (cacheUri: string) => {
-    console.log(cacheUri);
+  handleRecordedVideo = async (cacheUri: string) => {
+    // This puts it on external storage from the cache folder
+    const asset = await MediaLibrary.createAssetAsync(cacheUri);
+
+    // Put in app-specific album: Broken on Android 10
+    // const albums = await MediaLibrary.getAlbumAsync(CameraPose.ALBUM_NAME);
+    // if (album) {
+    // await MediaLibrary.addAssetsToAlbumAsync([asset], album);
+    // } else {
+    //   await MediaLibrary.createAlbumAsync(CameraPose.ALBUM_NAME, asset);
+    // }
   };
 
   recordVideoButton = () => {

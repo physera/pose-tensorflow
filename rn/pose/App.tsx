@@ -72,7 +72,7 @@ export default class App extends React.Component<{}, State> {
     return (
       <View style={styles.container}>
         <View style={{ alignItems: 'center' }}>
-          <Text>Pose Demo</Text>
+          <Text>Posera</Text>
         </View>
         <TabView
           lazy
