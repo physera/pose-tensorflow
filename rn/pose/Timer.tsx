@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Text, View } from 'react-native';
+import { Timer as colors } from './Colors';
 
 type State = {
   secondsLeft: number;
@@ -39,8 +40,9 @@ export default class Timer extends React.Component<Props, State> {
       return null;
     }
     return (
-      <View style={{ backgroundColor: '#f194ff', borderWidth: 2, borderColor: 'red' }}>
-        <Text style={{ fontSize: 100, color: 'red' }}>{this.state.secondsLeft}</Text>
+      <View
+        style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: colors.border }}>
+        <Text style={{ fontSize: 100, color: colors.text }}>{this.state.secondsLeft}</Text>
       </View>
     );
   }

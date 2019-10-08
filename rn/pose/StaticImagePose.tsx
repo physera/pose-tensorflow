@@ -5,6 +5,7 @@ import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { StaticImagePose as colors } from './Colors';
 
 let tflite = new Tflite();
 
@@ -97,7 +98,10 @@ export default class StaticImagePose extends React.Component<{}, State> {
   _getSelectButton = () => {
     return (
       <View style={{ margin: 25 }}>
-        <Icon.Button name="camera-roll" onPress={this.onSelectImage}>
+        <Icon.Button
+          name="camera-roll"
+          onPress={this.onSelectImage}
+          backgroundColor={colors.button.background}>
           Select image
         </Icon.Button>
       </View>
@@ -157,7 +161,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: 'green',
+    backgroundColor: colors.background,
     alignItems: 'center',
   },
 });

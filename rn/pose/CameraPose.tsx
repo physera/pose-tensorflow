@@ -16,6 +16,7 @@ import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as MediaLibrary from 'expo-media-library';
 import { TemporaryDirectoryPath } from 'react-native-fs';
+import { CameraPose as colors } from './Colors';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -33,6 +34,7 @@ class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
         borderRadius={0}
         iconStyle={{ marginRight: 20, marginLeft: 20 }}
         disabled={this.props.disabled}
+        backgroundColor={colors.button.background}
       />
     );
   };
@@ -58,7 +60,7 @@ class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          backgroundColor: 'darkgrey',
+          backgroundColor: colors.toolbar.background,
         }}>
         {this.flipCamera()}
         {this.zoomSlider()}
@@ -307,11 +309,11 @@ export default class CameraPose extends React.Component<Props, State> {
   captureTargetButton = () => {
     const color = (() => {
       if (this.state.capturingTargetPose != 'off') {
-        return 'red';
+        return colors.captureTargetButton.capturing;
       } else if (this.state.targetPose) {
-        return 'green';
+        return colors.captureTargetButton.hasTarget;
       } else {
-        return '#007AFF';
+        return colors.button.background;
       }
     })();
 
@@ -412,8 +414,8 @@ export default class CameraPose extends React.Component<Props, State> {
           height: 50,
           width: `${matchFraction * 100}%`,
           backgroundColor: `hsl(${matchFraction * 120}, 100%, 50%)`,
-          borderColor: 'red',
-          borderWidth: matchFraction == 1 ? 20 : 0,
+          // borderColor: 'red',
+          // borderWidth: matchFraction == 1 ? 20 : 0,
         }}
       />
     ) : null;
@@ -476,6 +478,7 @@ export default class CameraPose extends React.Component<Props, State> {
         borderRadius={0}
         iconStyle={{ marginLeft: 20, marginRight: 20 }}
         key="record-video"
+        backgroundColor={colors.button.background}
       />
     );
   };
@@ -509,7 +512,7 @@ export default class CameraPose extends React.Component<Props, State> {
           opacity: 0.5,
           highlightParts: false,
           showBoundingBox: false,
-          poseColor: 'white',
+          poseColor: colors.targetPose,
         })
       : null;
   };
@@ -545,7 +548,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: 'yellow',
+    backgroundColor: colors.background,
     alignItems: 'center',
   },
 });

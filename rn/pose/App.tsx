@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Dimensions, View, Text, StyleSheet } from 'react-native';
-import { TabView } from 'react-native-tab-view';
+import { TabView, TabBar } from 'react-native-tab-view';
 import StaticImagePose from './StaticImagePose';
 import CameraPose from './CameraPose';
+import { App as colors } from './Colors';
 
 type State = {
   index: number;
@@ -71,8 +72,8 @@ export default class App extends React.Component<{}, State> {
   render() {
     return (
       <View style={styles.container}>
-        <View style={{ alignItems: 'center' }}>
-          <Text>Posera</Text>
+        <View style={{ alignItems: 'center', backgroundColor: colors.titleBar.background }}>
+          <Text style={{ fontSize: 20, color: colors.titleBar.text, margin: 5 }}>Posera</Text>
         </View>
         <TabView
           lazy
@@ -80,6 +81,13 @@ export default class App extends React.Component<{}, State> {
           renderScene={this._renderScene}
           onIndexChange={this._handleIndexChange}
           initialLayout={{ width: Dimensions.get('window').width }}
+          renderTabBar={props => (
+            <TabBar
+              {...props}
+              indicatorStyle={{ backgroundColor: 'white' }}
+              style={{ backgroundColor: colors.tabView.background }}
+            />
+          )}
         />
       </View>
     );
@@ -90,6 +98,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
 });

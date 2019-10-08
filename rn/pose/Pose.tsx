@@ -10,6 +10,7 @@ import {
 } from '@tensorflow-models/posenet';
 import * as tf from '@tensorflow/tfjs-core';
 import Svg, { Circle, Line, G, Rect } from 'react-native-svg';
+import { Pose as colors } from './Colors';
 
 export type Dims = { width: number; height: number };
 
@@ -120,15 +121,18 @@ export const Pose: React.FunctionComponent<
   rotation,
   scoreThreshold = 0.25,
   showBoundingBox = false,
-  boundingBoxColor = 'purple',
-  poseColor = 'yellow',
+  boundingBoxColor = colors.defaultBoundingBoxColor,
+  poseColor = colors.defaultPoseColor,
   highlightParts = true,
 }) => {
   const pose = reindexPoseByPart(filterPoseByScore(poseIn, scoreThreshold));
   const strokeWidth = modelInputSize / 50;
   const radius = modelInputSize / 80;
   const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
-    const color = highlightParts && highlightParts[kp.part] ? 'green' : 'pink';
+    const color =
+      highlightParts && highlightParts[kp.part]
+        ? colors.keypoint.highlighted
+        : colors.keypoint.default;
     return (
       <G key={kp.part}>
         <Circle cx={kp.position.x} cy={kp.position.y} r={radius} fill={color} />
