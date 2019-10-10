@@ -6,7 +6,6 @@ import {
   getBoundingBox,
   Keypoint,
   Pose as PoseT,
-  PoseNetOutputStride, //
 } from '@tensorflow-models/posenet';
 import * as tf from '@tensorflow/tfjs-core';
 import Svg, { Circle, Line, G, Rect } from 'react-native-svg';
@@ -16,9 +15,12 @@ export type Dims = { width: number; height: number };
 
 export { PoseT, Keypoint };
 
-// copied from posenet_model.d.ts because it is not exported
-type PoseNetInputResolution =
+type OutputStride = 32 | 16 | 8;
+
+// copied from posenet_model.d.ts, PoseNetInputResolution because it is not exported
+type InputResolution =
   | 161
+  | 192
   | 193
   | 257
   | 289
@@ -35,39 +37,71 @@ type PoseNetInputResolution =
 
 type Model = {
   file: string;
-  inputSize: PoseNetInputResolution;
-  outputStride: PoseNetOutputStride;
+  inputSize: InputResolution;
+  outputStride: OutputStride;
   mean: number;
   std: number;
+  useNNAPI: boolean;
+  useGpuDelegate: boolean;
+  allowFp16Precision: boolean;
+  numThreads: number;
+  type: 'posenet' | 'cpm' | 'hourglass';
+};
+
+const commonModelParams = {
+  mean: 128.0,
+  std: 128.0,
+  useNNAPI: false,
+  useGpuDelegate: true,
+  allowFp16Precision: false,
+  numThreads: -1,
 };
 
 const Model337: Model = {
   file: 'posenet_mv1_075_float_from_checkpoints.tflite',
   inputSize: 337,
   outputStride: 16,
-  mean: 127.5,
-  std: 127.5,
+  type: 'posenet',
+  ...commonModelParams,
+};
+
+const CPM: Model = {
+  file: 'edvardhua_cpm.tflite',
+  inputSize: 192,
+  outputStride: 16, // unknown. output is 96x96
+  type: 'cpm',
+  ...commonModelParams,
+};
+
+const Hourglass: Model = {
+  file: 'edvardhua_hourglass.tflite',
+  inputSize: 192,
+  outputStride: 16, // unknown. output is 48x48
+  type: 'hourglass',
+  ...commonModelParams,
 };
 
 const Model257: Model = {
   file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
   inputSize: 257,
   outputStride: 32,
-  mean: 127.5,
-  std: 127.5,
+  type: 'posenet',
+  ...commonModelParams,
 };
 
 // DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
+// this one works on the gpu?
+
 const Model353: Model = {
   file: 'multi_person_mobilenet_v1_075_float.tflite',
   inputSize: 353, // whoops this is actually 353x257
   outputStride: 16,
-  mean: 127.5,
-  std: 127.5,
+  type: 'posenet',
+  ...commonModelParams,
 };
 
 export const getModel = (): Model => {
-  return Model337;
+  return Hourglass;
 };
 
 const reindexPoseByPart = (

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, Text, View, Dimensions, Switch } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Dimensions, Switch } from 'react-native';
 import { RNCamera } from 'react-native-camera';
 import Slider from '@react-native-community/slider';
 import {
@@ -240,10 +240,7 @@ export default class CameraPose extends React.Component<Props, State> {
     const responseReceived = Date.now();
 
     const evt = res.nativeEvent;
-    const poses = evt.data;
-    if (!(poses && poses.length)) {
-      return;
-    }
+    const poses = evt.data || [];
 
     // Lags
     const inferenceTime = evt.timing.inference_ns / 1e6;
@@ -256,8 +253,10 @@ export default class CameraPose extends React.Component<Props, State> {
     const width = evt.dimensions.width * evt.scale.scaleX;
     const height = evt.dimensions.height * evt.scale.scaleY;
 
-    this.maybeCaptureTargetPose(poses[0]);
-    await this.maybeCompareToTargetPose(poses[0]);
+    if (poses.length > 0) {
+      this.maybeCaptureTargetPose(poses[0]);
+      await this.maybeCompareToTargetPose(poses[0]);
+    }
     this.setState({
       poses: poses,
       viewDims: {
@@ -370,34 +369,42 @@ export default class CameraPose extends React.Component<Props, State> {
     );
   };
 
-  lagTimers = () => {
+  debugTable = (data: { [k: string]: any }) => {
+    return (
+      <ScrollView style={{ height: 150, flex: 1 }}>
+        {Object.entries(data).map(([k, v]) => {
+          return v !== null ? (
+            <Text key={k}>
+              {k}: {v.toString()}
+            </Text>
+          ) : null;
+        })}
+      </ScrollView>
+    );
+  };
+
+  debug = () => {
     if (__DEV__) {
       const timeNow = Date.now();
-      return (
-        <View>
-          {this.state.timers && this.state.timers.responseReceived ? (
-            <Text>Since response: {timeNow - this.state.timers.responseReceived}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.inference ? (
-            <Text>Inference: {this.state.timers.inference}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.imageTime ? (
-            <Text>Lag-image: {timeNow - this.state.timers.imageTime}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.inferenceBeginTime ? (
-            <Text>Lag-inference-begin: {timeNow - this.state.timers.inferenceBeginTime}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.inferenceEndTime ? (
-            <Text>Lag-inference-end: {timeNow - this.state.timers.inferenceEndTime}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.serializationBeginTime ? (
-            <Text>Lag-serial: {timeNow - this.state.timers.serializationBeginTime}ms</Text>
-          ) : null}
-          {this.state.timers && this.state.timers.serializationEndTime ? (
-            <Text>Lag-serial-end: {timeNow - this.state.timers.serializationEndTime}ms</Text>
-          ) : null}
-        </View>
-      );
+      const timersData = this.state.timers
+        ? {
+            NumPoses: this.state.poses ? this.state.poses.length : 0,
+            Lag: this.state.timers.imageTime ? timeNow - this.state.timers.imageTime : null,
+            Inf: this.state.timers.inference ? Math.ceil(this.state.timers.inference) : null,
+            Ser:
+              this.state.timers.serializationBeginTime && this.state.timers.serializationEndTime
+                ? this.state.timers.serializationEndTime - this.state.timers.serializationBeginTime
+                : null,
+            JS: this.state.timers.responseReceived
+              ? timeNow - this.state.timers.responseReceived
+              : null,
+          }
+        : {};
+
+      return this.debugTable({
+        ...timersData,
+        ...getModel(),
+      });
     }
   };
 
@@ -497,7 +504,10 @@ export default class CameraPose extends React.Component<Props, State> {
   };
 
   pose = () => {
-    return !this.state.isRecordingVideo && this.state.poses && this.state.viewDims
+    return !this.state.isRecordingVideo &&
+      this.state.poses &&
+      this.state.poses.length &&
+      this.state.viewDims
       ? this.poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
       : null;
   };
@@ -538,7 +548,7 @@ export default class CameraPose extends React.Component<Props, State> {
           {this.recordingVideoTimer()}
           {this.matchLevel()}
         </CameraView>
-        <View style={{ marginTop: 10 }}>{this.lagTimers()}</View>
+        {this.debug()}
       </View>
     );
   }
