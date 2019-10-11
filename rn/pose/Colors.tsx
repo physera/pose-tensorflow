@@ -9,12 +9,12 @@ export const App = {
   titleBar: { text: '#dbe3f6', background: '#2c295b' },
 };
 
-export const StaticImagePose = {
+export const ImageScreen = {
   ...base,
   background: '#dbe3f6',
 };
 
-export const CameraPose = {
+export const CameraScreen = {
   ...base,
   toolbar: {
     background: '#f3f6fd',

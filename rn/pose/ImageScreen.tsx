@@ -5,7 +5,8 @@ import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { StaticImagePose as colors } from './Colors';
+import { ImageScreen as colors } from './Colors';
+import { NavigationTabProp } from 'react-navigation-tabs';
 
 let tflite = new Tflite();
 
@@ -45,10 +46,14 @@ const getScaledImageDims = (imageDims: Dims, viewDims: Dims): Dims => {
   }
 };
 
-export default class StaticImagePose extends React.Component<{}, State> {
+type Props = {
+  navigation: NavigationTabProp;
+};
+
+export default class ImageScreen extends React.Component<Props, State> {
   state = { msg: null, image: null, poses: null };
 
-  constructor(props: {}) {
+  constructor(props: Props) {
     super(props);
     tflite.loadModel({ model: getModel().file });
   }

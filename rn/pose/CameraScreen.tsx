@@ -16,7 +16,9 @@ import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as MediaLibrary from 'expo-media-library';
 import { TemporaryDirectoryPath } from 'react-native-fs';
-import { CameraPose as colors } from './Colors';
+import { CameraScreen as colors } from './Colors';
+import { NavigationTabProp } from 'react-navigation-tabs';
+import { withNavigationFocus } from 'react-navigation';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -71,7 +73,6 @@ class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
 }
 
 type CameraViewProps = {
-  startPaused: boolean;
   isRecording: boolean;
   onCameraRef: (ref: any) => void;
   onPose: (response: any) => void;
@@ -84,7 +85,7 @@ type CameraViewState = {
 };
 
 class CameraView extends React.Component<CameraViewProps, CameraViewState> {
-  static defaultProps = { startPaused: true, isRecording: false };
+  static defaultProps = { isRecording: false };
   state: CameraViewState = {
     facingFront: true,
     zoom: 0,
@@ -174,14 +175,11 @@ type State = {
 };
 
 type Props = {
-  routeKey: string;
-  startPaused: boolean;
-  registerOnEnter: (key: string, fn: () => void) => void;
-  registerOnLeave: (key: string, fn: () => void) => void;
+  navigation: NavigationTabProp;
+  isFocused: boolean;
 };
 
-export default class CameraPose extends React.Component<Props, State> {
-  static defaultProps = { startPaused: true };
+class CameraScreen extends React.Component<Props, State> {
   static VIDEO_RECORDING_DURATION = 20;
   static KEYPOINT_SCORE_THRESHOLD = 0.25;
   static MATCH_DISTANCE_THRESHOLD = 0.25;
@@ -199,14 +197,23 @@ export default class CameraPose extends React.Component<Props, State> {
   };
   cameraRef: any;
 
-  constructor(props: Props) {
-    super(props);
-    this.props.registerOnLeave(this.props.routeKey, () => {
-      this.cameraRef.pausePreview();
-    });
-    this.props.registerOnEnter(this.props.routeKey, () => {
-      this.cameraRef.resumePreview();
-    });
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.isFocused != this.props.isFocused) {
+      if (this.props.isFocused) {
+        this.cameraRef.resumePreview();
+      } else {
+        // for some reason, calling pausePreview() directly means that
+        // the navigation tab bar indicator doesn't switch cleanly to
+        // theother view on unfocus -- something about the animation
+        // of the indicator is blocked, however if we time it to
+        // happen after the animation finishes, things are fine. Note
+        // that if we manage to switch back before this timer fires,
+        // we will encounter a paused camera view! But this is unlikely
+        setTimeout(() => {
+          this.cameraRef.pausePreview();
+        }, 200);
+      }
+    }
   }
 
   maybeCaptureTargetPose = (pose: PoseT): void => {
@@ -224,8 +231,8 @@ export default class CameraPose extends React.Component<Props, State> {
       const [keypoints, total] = matchingTargetKeypoints(
         this.state.targetPose,
         pose,
-        CameraPose.KEYPOINT_SCORE_THRESHOLD,
-        CameraPose.MATCH_DISTANCE_THRESHOLD,
+        CameraScreen.KEYPOINT_SCORE_THRESHOLD,
+        CameraScreen.MATCH_DISTANCE_THRESHOLD,
         getModel().inputSize
       );
       const success = keypoints.length == total;
@@ -299,7 +306,7 @@ export default class CameraPose extends React.Component<Props, State> {
             top: 0,
             right: 0,
           }}>
-          <Timer seconds={CameraPose.VIDEO_RECORDING_DURATION} />
+          <Timer seconds={CameraScreen.VIDEO_RECORDING_DURATION} />
         </Overlay>
       );
     }
@@ -361,7 +368,7 @@ export default class CameraPose extends React.Component<Props, State> {
           imageDims={this.state.viewDims}
           modelInputSize={getModel().inputSize}
           rotation={this.state.rotation}
-          scoreThreshold={CameraPose.KEYPOINT_SCORE_THRESHOLD}
+          scoreThreshold={CameraScreen.KEYPOINT_SCORE_THRESHOLD}
           highlightParts={partsToHighlight}
           {...displayOptions}
         />
@@ -448,7 +455,7 @@ export default class CameraPose extends React.Component<Props, State> {
 
     const path = TemporaryDirectoryPath + `/posera-${Date.now()}.mp4`;
     const { uri } = await this.cameraRef.recordAsync({
-      maxDuration: CameraPose.VIDEO_RECORDING_DURATION,
+      maxDuration: CameraScreen.VIDEO_RECORDING_DURATION,
       quality: RNCamera.Constants.VideoQuality['4:3'],
       mute: true,
       path,
@@ -466,11 +473,11 @@ export default class CameraPose extends React.Component<Props, State> {
     const asset = await MediaLibrary.createAssetAsync(cacheUri);
 
     // Put in app-specific album: Broken on Android 10
-    // const albums = await MediaLibrary.getAlbumAsync(CameraPose.ALBUM_NAME);
+    // const albums = await MediaLibrary.getAlbumAsync(CameraScreen.ALBUM_NAME);
     // if (album) {
     // await MediaLibrary.addAssetsToAlbumAsync([asset], album);
     // } else {
-    //   await MediaLibrary.createAlbumAsync(CameraPose.ALBUM_NAME, asset);
+    //   await MediaLibrary.createAlbumAsync(CameraScreen.ALBUM_NAME, asset);
     // }
   };
 
@@ -531,7 +538,6 @@ export default class CameraPose extends React.Component<Props, State> {
     return (
       <View style={styles.container}>
         <CameraView
-          startPaused={this.props.startPaused}
           onPose={this.handleVideoPoseResponse}
           isRecording={this.state.isRecordingVideo}
           onCameraRef={ref => {
@@ -553,6 +559,7 @@ export default class CameraPose extends React.Component<Props, State> {
     );
   }
 }
+export default withNavigationFocus(CameraScreen);
 
 const styles = StyleSheet.create({
   container: {
