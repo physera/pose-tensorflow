@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, ScrollView, Dimensions, Switch } from 'react-native';
 import { RNCamera } from 'react-native-camera';
 import Slider from '@react-native-community/slider';
@@ -10,7 +10,10 @@ import {
   Dims,
   getModel,
   matchingTargetKeypoints,
+  indexPoseByPart,
+  keypointDistance,
 } from './Pose';
+import { ModelSettings, ModelSettingsContext, ModelSettingsScreen } from './ModelSettings';
 import Timer from './Timer';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -19,6 +22,7 @@ import { TemporaryDirectoryPath } from 'react-native-fs';
 import { CameraScreen as colors } from './Colors';
 import { NavigationTabProp } from 'react-navigation-tabs';
 import { withNavigationFocus } from 'react-navigation';
+import { createStackNavigator } from 'react-navigation-stack';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -77,6 +81,7 @@ type CameraViewProps = {
   onCameraRef: (ref: any) => void;
   onPose: (response: any) => void;
   toolbarButtons?: JSX.Element[];
+  modelParams: any; // TODO update the type in react-native-camera
 };
 
 type CameraViewState = {
@@ -112,10 +117,7 @@ class CameraView extends React.Component<CameraViewProps, CameraViewState> {
           autoFocus={RNCamera.Constants.AutoFocus.on} // TODO: autoFocusPointOfInterest
           ratio="4:3" // default
           captureAudio={false}
-          modelParams={{
-            freqms: 0,
-            ...getModel(),
-          }}
+          modelParams={this.props.modelParams}
           onModelProcessed={this.props.onPose}
         />
       </View>
@@ -154,12 +156,14 @@ type Timers =
   | 'inferenceEndTime'
   | 'serializationBeginTime'
   | 'serializationEndTime'
+  | 'decodingBeginTime'
+  | 'decodingEndTime'
   | 'other';
 
 type CapturingTargetPose = 'timer' | 'ready' | 'off';
 
 type State = {
-  poses: PoseT[] | null;
+  pose: PoseT | null;
   targetPose: PoseT | null;
   targetMatch: {
     keypoints: Keypoint[];
@@ -181,12 +185,14 @@ type Props = {
 
 class CameraScreen extends React.Component<Props, State> {
   static VIDEO_RECORDING_DURATION = 20;
-  static KEYPOINT_SCORE_THRESHOLD = 0.25;
-  static MATCH_DISTANCE_THRESHOLD = 0.25;
+  static KEYPOINT_SCORE_THRESHOLD = 0.15;
+  static MATCH_DISTANCE_THRESHOLD = 0.25; // this is a fraction of modelInputSize
+  static MIN_MOVED_THRESHOLD = 0.02; // this is a fraction of modelInputSize
   static ALBUM_NAME = 'posera';
+  static contextType = ModelSettingsContext;
 
   state: State = {
-    poses: null,
+    pose: null,
     targetPose: null,
     capturingTargetPose: 'off',
     targetMatch: { keypoints: [], total: null, success: false, triggerVideoRecording: false },
@@ -233,7 +239,7 @@ class CameraScreen extends React.Component<Props, State> {
         pose,
         CameraScreen.KEYPOINT_SCORE_THRESHOLD,
         CameraScreen.MATCH_DISTANCE_THRESHOLD,
-        getModel().inputSize
+        getModel(this.context.name).inputSize
       );
       const success = keypoints.length == total;
       if (success && this.state.targetMatch.triggerVideoRecording && !this.state.isRecordingVideo) {
@@ -243,29 +249,67 @@ class CameraScreen extends React.Component<Props, State> {
     }
   };
 
+  mergePose = (prev: PoseT | null, next: PoseT | null, minMoved: number): PoseT | null => {
+    if (prev == null || next == null) {
+      return next;
+    }
+    const iprev = indexPoseByPart(prev);
+    const keypoints = next.keypoints.map(kp => {
+      const prevKp = iprev.keypoints[kp.part];
+      if (!prevKp) {
+        return kp;
+      }
+      const distance = keypointDistance(prevKp, kp);
+      return distance >= minMoved * getModel(this.context.name).inputSize ? kp : prevKp;
+    });
+    return {
+      score: next.score,
+      keypoints,
+    };
+  };
+
   handleVideoPoseResponse = async (res: { nativeEvent: any }) => {
     const responseReceived = Date.now();
 
     const evt = res.nativeEvent;
     const poses = evt.data || [];
 
+    const timing = evt.timing || {
+      inference_ns: 0,
+      inferenceBeginTime: 0,
+      inferenceEndTime: 0,
+      serializationEndTime: 0,
+      serializationBeginTime: 0,
+      decodingBeginTime: 0,
+      decodingEndTime: 0,
+      imageTime: 0,
+    };
+
     // Lags
-    const inferenceTime = evt.timing.inference_ns / 1e6;
-    const imageTime = evt.timing.imageTime;
-    const inferenceBeginTime = evt.timing.inferenceBeginTime;
-    const inferenceEndTime = evt.timing.inferenceEndTime;
-    const serializationBeginTime = evt.timing.serializationBeginTime;
-    const serializationEndTime = evt.timing.serializationEndTime;
+    const inferenceTime = timing.inference_ns / 1e6;
+    const imageTime = timing.imageTime;
+    const inferenceBeginTime = timing.inferenceBeginTime;
+    const inferenceEndTime = timing.inferenceEndTime;
+    const serializationBeginTime = timing.serializationBeginTime;
+    const serializationEndTime = timing.serializationEndTime;
+    const decodingBeginTime = timing.decodingBeginTime;
+    const decodingEndTime = timing.decodingEndTime;
 
     const width = evt.dimensions.width * evt.scale.scaleX;
     const height = evt.dimensions.height * evt.scale.scaleY;
 
-    if (poses.length > 0) {
-      this.maybeCaptureTargetPose(poses[0]);
-      await this.maybeCompareToTargetPose(poses[0]);
+    const mergedPose = this.mergePose(
+      this.state.pose,
+      poses.length > 0 ? poses[0] : null,
+      CameraScreen.MIN_MOVED_THRESHOLD
+    );
+
+    if (mergedPose) {
+      this.maybeCaptureTargetPose(mergedPose);
+      await this.maybeCompareToTargetPose(mergedPose);
     }
     this.setState({
-      poses: poses,
+      pose: mergedPose,
       viewDims: {
         width: width,
         height: height,
@@ -280,6 +324,8 @@ class CameraScreen extends React.Component<Props, State> {
         inferenceEndTime,
         serializationEndTime,
         serializationBeginTime,
+        decodingBeginTime,
+        decodingEndTime,
       },
     });
   };
@@ -364,9 +410,9 @@ class CameraScreen extends React.Component<Props, State> {
           opacity: opacity,
         }}>
         <Pose
-          poseIn={pose}
+          pose={pose}
           imageDims={this.state.viewDims}
-          modelInputSize={getModel().inputSize}
+          modelInputSize={getModel(this.context.name).inputSize}
           rotation={this.state.rotation}
           scoreThreshold={CameraScreen.KEYPOINT_SCORE_THRESHOLD}
           highlightParts={partsToHighlight}
@@ -391,28 +437,40 @@ class CameraScreen extends React.Component<Props, State> {
   };
 
   debug = () => {
-    if (__DEV__) {
-      const timeNow = Date.now();
-      const timersData = this.state.timers
-        ? {
-            NumPoses: this.state.poses ? this.state.poses.length : 0,
-            Lag: this.state.timers.imageTime ? timeNow - this.state.timers.imageTime : null,
-            Inf: this.state.timers.inference ? Math.ceil(this.state.timers.inference) : null,
-            Ser:
-              this.state.timers.serializationBeginTime && this.state.timers.serializationEndTime
-                ? this.state.timers.serializationEndTime - this.state.timers.serializationBeginTime
-                : null,
-            JS: this.state.timers.responseReceived
-              ? timeNow - this.state.timers.responseReceived
-              : null,
-          }
-        : {};
+    const timeNow = Date.now();
+    const timersData = this.state.timers
+      ? {
+          NumPoses: this.state.pose ? 1 : 0,
+          ImageLag: this.state.timers.imageTime ? timeNow - this.state.timers.imageTime : null,
+          Inf: this.state.timers.inference ? Math.ceil(this.state.timers.inference) : null,
+          InfLag: this.state.timers.inferenceEndTime
+            ? timeNow - this.state.timers.inferenceEndTime
+            : null,
+          // Dec:
+          //   this.state.timers.decodingBeginTime && this.state.timers.decodingEndTime
+          //     ? this.state.timers.decodingEndTime - this.state.timers.decodingBeginTime
+          //     : null,
+          DecLag: this.state.timers.decodingEndTime
+            ? timeNow - this.state.timers.decodingEndTime
+            : null,
+          // Ser:
+          //   this.state.timers.serializationBeginTime && this.state.timers.serializationEndTime
+          //     ? this.state.timers.serializationEndTime - this.state.timers.serializationBeginTime
+          //     : null,
+          SerLag: this.state.timers.serializationEndTime
+            ? timeNow - this.state.timers.serializationEndTime
+            : null,
+          JS: this.state.timers.responseReceived
+            ? timeNow - this.state.timers.responseReceived
+            : null,
+        }
+      : {};
 
-      return this.debugTable({
-        ...timersData,
-        ...getModel(),
-      });
-    }
+    return this.debugTable({
+      ...timersData,
+      ...this.context,
+      ...getModel(this.context.name),
+    });
   };
 
   matchLevel = () => {
@@ -511,11 +569,8 @@ class CameraScreen extends React.Component<Props, State> {
   };
 
   pose = () => {
-    return !this.state.isRecordingVideo &&
-      this.state.poses &&
-      this.state.poses.length &&
-      this.state.viewDims
-      ? this.poseOverlay({ pose: this.state.poses[0], showBoundingBox: false, opacity: 0.8 })
+    return !this.state.isRecordingVideo && this.state.pose && this.state.viewDims
+      ? this.poseOverlay({ pose: this.state.pose, showBoundingBox: false, opacity: 0.8 })
       : null;
   };
 
@@ -534,6 +589,19 @@ class CameraScreen extends React.Component<Props, State> {
       : null;
   };
 
+  settingsButton = () => {
+    return (
+      <Icon.Button
+        name="settings-applications"
+        onPress={() => this.props.navigation.navigate('Settings')}
+        borderRadius={0}
+        iconStyle={{ marginLeft: 20, marginRight: 20 }}
+        key="settings"
+        backgroundColor={colors.button.background}
+      />
+    );
+  };
+
   render() {
     return (
       <View style={styles.container}>
@@ -543,23 +611,59 @@ class CameraScreen extends React.Component<Props, State> {
           onCameraRef={ref => {
             this.cameraRef = ref;
           }}
+          modelParams={{
+            freqms: 0,
+            ...this.context,
+            ...getModel(this.context.name),
+          }}
           toolbarButtons={[
             this.captureTargetButton(),
             this.recordVideoButton(),
             this.triggerOnTargetMatchSwitch(),
-          ]}>
-          {this.pose()}
-          {this.targetPose()}
-          {this.captureTargetTimer()}
-          {this.recordingVideoTimer()}
-          {this.matchLevel()}
-        </CameraView>
+            this.settingsButton(),
+          ]}></CameraView>
+        {this.pose()}
+        {this.targetPose()}
+        {this.captureTargetTimer()}
+        {this.recordingVideoTimer()}
+        {this.matchLevel()}
         {this.debug()}
       </View>
     );
   }
 }
-export default withNavigationFocus(CameraScreen);
+
+const SettingsStack = createStackNavigator({
+  Camera: {
+    screen: CameraScreen,
+    navigationOptions: {
+      header: null,
+    },
+  },
+  Settings: ModelSettingsScreen,
+});
+
+export default class Container extends React.Component<
+  { navigation: NavigationTabProp },
+  ModelSettings
+> {
+  static router = SettingsStack.router;
+  state: ModelSettings = {
+    useNNAPI: false,
+    useGpuDelegate: true,
+    allowFp16Precision: false,
+    numThreads: -1,
+    name: 'posenet337',
+  };
+
+  render() {
+    return (
+      <ModelSettingsContext.Provider value={{ ...this.state, setState: this.setState }}>
+        <SettingsStack navigation={this.props.navigation} />
+      </ModelSettingsContext.Provider>
+    );
+  }
+}
 
 const styles = StyleSheet.create({
   container: {

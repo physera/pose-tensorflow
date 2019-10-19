@@ -6,6 +6,26 @@ import { App as colors } from './Colors';
 import { createAppContainer } from 'react-navigation';
 import { createMaterialTopTabNavigator } from 'react-navigation-tabs';
 
+console.disableYellowBox = true;
+
+import MessageQueue from 'react-native/Libraries/BatchedBridge/MessageQueue.js';
+
+const spyFunction = msg => {
+  // only native -> JS
+  if (msg.type == 0 && msg.module == 'RCTEventEmitter') {
+    const data = msg.args[2];
+    if (data && data.timing) {
+      console.log([
+        Date.now() - data.timing.imageTime,
+        Date.now() - data.timing.serializationEndTime,
+        data.timing,
+      ]);
+    }
+  }
+};
+
+// MessageQueue.spy(spyFunction);
+
 const tabNavigator = createMaterialTopTabNavigator(
   {
     Image: {
@@ -40,7 +60,6 @@ const App = () => {
   );
 };
 export default App;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -41,97 +41,107 @@ type Model = {
   outputStride: OutputStride;
   mean: number;
   std: number;
-  useNNAPI: boolean;
-  useGpuDelegate: boolean;
-  allowFp16Precision: boolean;
-  numThreads: number;
   type: 'posenet' | 'cpm' | 'hourglass';
 };
 
 const commonModelParams = {
   mean: 128.0,
   std: 128.0,
-  useNNAPI: false,
-  useGpuDelegate: true,
-  allowFp16Precision: false,
-  numThreads: -1,
 };
 
-const Model337: Model = {
-  file: 'posenet_mv1_075_float_from_checkpoints.tflite',
-  inputSize: 337,
-  outputStride: 16,
-  type: 'posenet',
-  ...commonModelParams,
+export type ModelName = 'posenet337' | 'cpm' | 'hourglass' | 'posenet257' | 'posenet353';
+export const Models: Record<ModelName, Model> = {
+  posenet337: {
+    file: 'posenet_mv1_075_float_from_checkpoints.tflite',
+    inputSize: 337,
+    outputStride: 16,
+    type: 'posenet',
+    ...commonModelParams,
+  },
+  cpm: {
+    file: 'edvardhua_cpm.tflite',
+    inputSize: 192,
+    outputStride: 16, // unknown. output is 96x96
+    type: 'cpm',
+    ...commonModelParams,
+  },
+  hourglass: {
+    file: 'edvardhua_hourglass.tflite',
+    inputSize: 192,
+    outputStride: 16, // unknown. output is 48x48
+    type: 'hourglass',
+    ...commonModelParams,
+  },
+  posenet257: {
+    file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
+    inputSize: 257,
+    outputStride: 32,
+    type: 'posenet',
+    ...commonModelParams,
+  },
+  // DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert
+  // between a TensorFlowLite buffer with 1088652 bytes and a
+  // ByteBuffer with 1495308 bytes.  this one works on the gpu?
+  posenet353: {
+    file: 'multi_person_mobilenet_v1_075_float.tflite',
+    inputSize: 353, // whoops this is actually 353x257
+    outputStride: 16,
+    type: 'posenet',
+    ...commonModelParams,
+  },
 };
 
-const CPM: Model = {
-  file: 'edvardhua_cpm.tflite',
-  inputSize: 192,
-  outputStride: 16, // unknown. output is 96x96
-  type: 'cpm',
-  ...commonModelParams,
+export const getModel = (name: ModelName): Model => {
+  return Models[name];
 };
 
-const Hourglass: Model = {
-  file: 'edvardhua_hourglass.tflite',
-  inputSize: 192,
-  outputStride: 16, // unknown. output is 48x48
-  type: 'hourglass',
-  ...commonModelParams,
-};
+type IndexedPoseT = { score: number; keypoints: { [k: string]: Keypoint } };
 
-const Model257: Model = {
-  file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
-  inputSize: 257,
-  outputStride: 32,
-  type: 'posenet',
-  ...commonModelParams,
-};
-
-// DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert between a TensorFlowLite buffer with 1088652 bytes and a ByteBuffer with 1495308 bytes.
-// this one works on the gpu?
-
-const Model353: Model = {
-  file: 'multi_person_mobilenet_v1_075_float.tflite',
-  inputSize: 353, // whoops this is actually 353x257
-  outputStride: 16,
-  type: 'posenet',
-  ...commonModelParams,
-};
-
-export const getModel = (): Model => {
-  return Hourglass;
-};
-
-const reindexPoseByPart = (
-  pose: PoseT
-): { score: number; keypoints: { [k: string]: Keypoint } } => {
-  let reindexedKps = {};
+export const indexPoseByPart = (pose: PoseT): IndexedPoseT => {
+  let indexedKps = {};
   for (const kp of pose.keypoints) {
-    reindexedKps[kp.part] = kp;
+    indexedKps[kp.part] = kp;
   }
   return {
     score: pose.score,
-    keypoints: reindexedKps,
+    keypoints: indexedKps,
   };
 };
 
-type Side = 'Left' | 'Right' | 'Across';
-
-const Skeleton: [string, string, Side][] = [
-  ['leftShoulder', 'rightShoulder', 'Across'],
-  ['leftShoulder', 'leftElbow', 'Left'],
-  ['rightShoulder', 'rightElbow', 'Right'],
-  ['leftElbow', 'leftWrist', 'Left'],
-  ['rightElbow', 'rightWrist', 'Right'],
-  ['leftShoulder', 'leftHip', 'Left'],
-  ['rightShoulder', 'rightHip', 'Right'],
-  ['leftHip', 'leftKnee', 'Left'],
-  ['rightHip', 'rightKnee', 'Right'],
-  ['leftKnee', 'leftAnkle', 'Left'],
-  ['rightKnee', 'rightAnkle', 'Right'],
-];
+const PoseNetStructure = {
+  Parts: [
+    'nose',
+    'leftEye',
+    'rightEye',
+    'leftEar',
+    'rightEar',
+    'leftShoulder',
+    'rightShoulder',
+    'leftElbow',
+    'rightElbow',
+    'leftWrist',
+    'rightWrist',
+    'leftHip',
+    'rightHip',
+    'leftKnee',
+    'rightKnee',
+    'leftAnkle',
+    'rightAnkle',
+  ],
+  Skeleton: [
+    ['leftShoulder', 'rightShoulder'],
+    ['leftShoulder', 'leftElbow'],
+    ['rightShoulder', 'rightElbow'],
+    ['leftElbow', 'leftWrist'],
+    ['rightElbow', 'rightWrist'],
+    ['leftShoulder', 'leftHip'],
+    ['rightShoulder', 'rightHip'],
+    ['leftHip', 'leftKnee'],
+    ['rightHip', 'rightKnee'],
+    ['leftKnee', 'leftAnkle'],
+    ['rightKnee', 'rightAnkle'],
+  ],
+};
 
 export type PoseDisplayOptions = {
   scoreThreshold?: number;
@@ -142,14 +152,14 @@ export type PoseDisplayOptions = {
 
 export const Pose: React.FunctionComponent<
   {
-    poseIn: PoseT;
+    pose: PoseT;
     imageDims: Dims; // the image for which pose is inferred
     modelInputSize: number;
     rotation: number;
     highlightParts?: { [k: string]: boolean };
   } & PoseDisplayOptions
 > = ({
-  poseIn,
+  pose,
   imageDims,
   modelInputSize,
   rotation,
@@ -159,10 +169,10 @@ export const Pose: React.FunctionComponent<
   poseColor = colors.defaultPoseColor,
   highlightParts = true,
 }) => {
-  const pose = reindexPoseByPart(filterPoseByScore(poseIn, scoreThreshold));
+  const indexedPose = indexPoseByPart(filterPoseByScore(pose, scoreThreshold));
   const strokeWidth = modelInputSize / 50;
   const radius = modelInputSize / 80;
-  const points = Object.values(pose.keypoints).map((kp: Keypoint) => {
+  const points = Object.values(indexedPose.keypoints).map((kp: Keypoint) => {
     const color =
       highlightParts && highlightParts[kp.part]
         ? colors.keypoint.highlighted
@@ -174,9 +184,9 @@ export const Pose: React.FunctionComponent<
     );
   });
 
-  const lines = Skeleton.map(([from_part, to_part, side]) => {
-    const from_kp = pose.keypoints[from_part];
-    const to_kp = pose.keypoints[to_part];
+  const lines = PoseNetStructure.Skeleton.map(([from_part, to_part]) => {
+    const from_kp = indexedPose.keypoints[from_part];
+    const to_kp = indexedPose.keypoints[to_part];
     if (from_kp && to_kp) {
       return (
         <Line
@@ -196,7 +206,7 @@ export const Pose: React.FunctionComponent<
 
   var boundingBoxRect = null;
   if (showBoundingBox) {
-    const boundingBox = getBoundingBox(poseIn.keypoints);
+    const boundingBox = getBoundingBox(pose.keypoints);
     boundingBoxRect = (
       <Rect
         x={boundingBox.minX * 0.8}
@@ -303,7 +313,7 @@ const filterByPart = (
 };
 
 const filterPoseByTargetAndScore = (pose: PoseT, target: PoseT, threshold: number): PoseT => {
-  const targetPose = reindexPoseByPart(filterPoseByScore(target, threshold));
+  const targetPose = indexPoseByPart(filterPoseByScore(target, threshold));
   return {
     score: pose.score,
     keypoints: pose.keypoints.filter(kp => kp.score >= threshold && targetPose.keypoints[kp.part]),
@@ -324,15 +334,15 @@ export const matchingTargetKeypoints = (
   distanceThreshold: number,
   modelInputSize: number
 ): [Keypoint[], number] => {
-  const targetPose = reindexPoseByPart(scaleForMatch(target, scoreThreshold, modelInputSize));
-  const pose = reindexPoseByPart(scaleForMatch(candidate, scoreThreshold, modelInputSize, target));
+  const targetPose = indexPoseByPart(scaleForMatch(target, scoreThreshold, modelInputSize));
+  const pose = indexPoseByPart(scaleForMatch(candidate, scoreThreshold, modelInputSize, target));
   const matchingKeypoints = Object.values(targetPose.keypoints).filter((tkp: Keypoint): boolean => {
     const pkp = pose.keypoints[tkp.part];
     if (!pkp) {
       return false;
     }
-    const distance = keypointDistance(tkp, pkp) / modelInputSize;
-    return distance <= distanceThreshold;
+    const distance = keypointDistance(tkp, pkp);
+    return distance <= distanceThreshold * modelInputSize;
   });
   return [
     matchingKeypoints,
@@ -341,6 +351,6 @@ export const matchingTargetKeypoints = (
   ];
 };
 
-const keypointDistance = (a: Keypoint, b: Keypoint): number => {
+export const keypointDistance = (a: Keypoint, b: Keypoint): number => {
   return Math.sqrt((b.position.y - a.position.y) ** 2 + (b.position.x - a.position.x) ** 2);
 };
