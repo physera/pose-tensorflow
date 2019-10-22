@@ -13,7 +13,7 @@ import {
   indexPoseByPart,
   keypointDistance,
 } from './Pose';
-import { ModelSettings, ModelSettingsContext, ModelSettingsScreen } from './ModelSettings';
+import { SettingsContext } from './Settings';
 import Timer from './Timer';
 import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -21,8 +21,6 @@ import * as MediaLibrary from 'expo-media-library';
 import { TemporaryDirectoryPath } from 'react-native-fs';
 import { CameraScreen as colors } from './Colors';
 import { NavigationTabProp } from 'react-navigation-tabs';
-import { withNavigationFocus } from 'react-navigation';
-import { createStackNavigator } from 'react-navigation-stack';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -183,13 +181,13 @@ type Props = {
   isFocused: boolean;
 };
 
-class CameraScreen extends React.Component<Props, State> {
+export default class CameraScreen extends React.Component<Props, State> {
   static VIDEO_RECORDING_DURATION = 20;
   static KEYPOINT_SCORE_THRESHOLD = 0.15;
   static MATCH_DISTANCE_THRESHOLD = 0.25; // this is a fraction of modelInputSize
   static MIN_MOVED_THRESHOLD = 0.02; // this is a fraction of modelInputSize
   static ALBUM_NAME = 'posera';
-  static contextType = ModelSettingsContext;
+  static contextType = SettingsContext;
 
   state: State = {
     pose: null,
@@ -589,19 +587,6 @@ class CameraScreen extends React.Component<Props, State> {
       : null;
   };
 
-  settingsButton = () => {
-    return (
-      <Icon.Button
-        name="settings-applications"
-        onPress={() => this.props.navigation.navigate('Settings')}
-        borderRadius={0}
-        iconStyle={{ marginLeft: 20, marginRight: 20 }}
-        key="settings"
-        backgroundColor={colors.button.background}
-      />
-    );
-  };
-
   render() {
     return (
       <View style={styles.container}>
@@ -620,47 +605,15 @@ class CameraScreen extends React.Component<Props, State> {
             this.captureTargetButton(),
             this.recordVideoButton(),
             this.triggerOnTargetMatchSwitch(),
-            this.settingsButton(),
-          ]}></CameraView>
-        {this.pose()}
-        {this.targetPose()}
-        {this.captureTargetTimer()}
-        {this.recordingVideoTimer()}
-        {this.matchLevel()}
+          ]}>
+          {this.pose()}
+          {this.targetPose()}
+          {this.captureTargetTimer()}
+          {this.recordingVideoTimer()}
+          {this.matchLevel()}
+        </CameraView>
         {this.debug()}
       </View>
-    );
-  }
-}
-
-const SettingsStack = createStackNavigator({
-  Camera: {
-    screen: CameraScreen,
-    navigationOptions: {
-      header: null,
-    },
-  },
-  Settings: ModelSettingsScreen,
-});
-
-export default class Container extends React.Component<
-  { navigation: NavigationTabProp },
-  ModelSettings
-> {
-  static router = SettingsStack.router;
-  state: ModelSettings = {
-    useNNAPI: false,
-    useGpuDelegate: true,
-    allowFp16Precision: false,
-    numThreads: -1,
-    name: 'posenet337',
-  };
-
-  render() {
-    return (
-      <ModelSettingsContext.Provider value={{ ...this.state, setState: this.setState }}>
-        <SettingsStack navigation={this.props.navigation} />
-      </ModelSettingsContext.Provider>
     );
   }
 }

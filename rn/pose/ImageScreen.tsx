@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, View, ScrollView, Platform, Button, Image, Dimensions } from 'react-native';
+import { StyleSheet, View, ScrollView, Platform, Image, Dimensions } from 'react-native';
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
@@ -7,15 +7,11 @@ import Overlay from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { ImageScreen as colors } from './Colors';
 import { NavigationTabProp } from 'react-navigation-tabs';
+import { SettingsContext } from './Settings';
 
 let tflite = new Tflite();
 
 type ImageT = { path: string; rotation: number } & Dims;
-type State = {
-  msg: string | object | null;
-  image: ImageT | null;
-  poses: PoseT[] | null;
-};
 
 const getScaledImageDims = (imageDims: Dims, viewDims: Dims): Dims => {
   const isTallerThanView = imageDims.height > viewDims.height;
@@ -50,13 +46,31 @@ type Props = {
   navigation: NavigationTabProp;
 };
 
-export default class ImageScreen extends React.Component<Props, State> {
-  state = { msg: null, image: null, poses: null };
+type State = {
+  msg: string | object | null;
+  image: ImageT | null;
+  poses: PoseT[] | null;
+  currentModelName: string | null;
+};
 
-  constructor(props: Props) {
-    super(props);
-    tflite.loadModel({ model: getModel().file });
+export default class ImageScreen extends React.Component<Props, State> {
+  state = { msg: null, image: null, poses: null, currentModelName: null };
+  static contextType = SettingsContext;
+
+  componentDidMount() {
+    this.loadModel();
   }
+
+  componentDidUpdate() {
+    if (this.context.name != this.state.currentModelName) {
+      this.loadModel();
+    }
+  }
+
+  loadModel = () => {
+    tflite.loadModel({ model: getModel(this.context.name).file });
+    this.setState({ currentModelName: this.context.name });
+  };
 
   getImageViewDims = (): Dims => {
     const window = Dimensions.get('window');
@@ -67,7 +81,7 @@ export default class ImageScreen extends React.Component<Props, State> {
   };
 
   handleImagePoseResponse = async res => {
-    const poses = await decodePoses('multiple', getModel(), res);
+    const poses = await decodePoses('multiple', getModel(this.context.name), res);
     if (poses && poses.length) {
       this.setState({ poses: poses });
     }
@@ -123,9 +137,9 @@ export default class ImageScreen extends React.Component<Props, State> {
 
     const poseOverlay = this.state.poses ? (
       <Pose
-        poseIn={this.state.poses[0]}
+        pose={this.state.poses[0]}
         imageDims={scaledImageDims}
-        modelInputSize={getModel().inputSize}
+        modelInputSize={getModel(this.context.name).inputSize}
         rotation={0}
         scoreThreshold={0.25}
       />

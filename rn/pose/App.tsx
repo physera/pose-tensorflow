@@ -3,8 +3,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import ImageScreen from './ImageScreen';
 import CameraScreen from './CameraScreen';
 import { App as colors } from './Colors';
-import { createAppContainer } from 'react-navigation';
+import { createAppContainer, NavigationActions } from 'react-navigation';
 import { createMaterialTopTabNavigator } from 'react-navigation-tabs';
+import { Settings, SettingsContext, SettingsScreen } from './Settings';
+import { createStackNavigator } from 'react-navigation-stack';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 console.disableYellowBox = true;
 
@@ -26,7 +29,7 @@ const spyFunction = msg => {
 
 // MessageQueue.spy(spyFunction);
 
-const tabNavigator = createMaterialTopTabNavigator(
+const tabs = createMaterialTopTabNavigator(
   {
     Image: {
       screen: ImageScreen,
@@ -36,7 +39,7 @@ const tabNavigator = createMaterialTopTabNavigator(
     },
   },
   {
-    initialRouteName: 'Live',
+    initialRouteName: 'Image',
     lazy: true,
     tabBarOptions: {
       showLabel: true,
@@ -45,21 +48,88 @@ const tabNavigator = createMaterialTopTabNavigator(
     },
   }
 );
-const AppContainer = createAppContainer(tabNavigator);
-const App = () => {
-  const header = (
-    <View style={{ alignItems: 'center', backgroundColor: colors.titleBar.background }}>
-      <Text style={{ fontSize: 20, color: colors.titleBar.text, margin: 5 }}>Posera</Text>
-    </View>
-  );
-  return (
-    <View style={styles.container}>
-      {header}
-      <AppContainer />
-    </View>
-  );
-};
-export default App;
+
+const settingsStack = createStackNavigator({
+  Tabs: {
+    screen: tabs,
+    navigationOptions: {
+      header: null,
+    },
+  },
+  Settings: SettingsScreen,
+});
+
+const AppContainer = createAppContainer(settingsStack);
+
+export default class App extends React.Component<{}, Settings> {
+  static router = settingsStack.router;
+  state: Settings = {
+    useNNAPI: false,
+    useGpuDelegate: true,
+    allowFp16Precision: false,
+    numThreads: -1,
+    name: 'posenet337',
+  };
+  navigator = null;
+
+  settingsButton = () => {
+    return (
+      <Icon.Button
+        name="settings-applications"
+        onPress={() =>
+          this.navigator.dispatch(NavigationActions.navigate({ routeName: 'Settings' }))
+        }
+        borderRadius={0}
+        iconStyle={{ marginLeft: 20, marginRight: 20 }}
+        key="settings"
+        backgroundColor={null}
+      />
+    );
+  };
+
+  render() {
+    const header = (
+      <View
+        style={{
+          backgroundColor: colors.titleBar.background,
+          alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+        }}>
+        <View style={{ minWidth: 90 }} />
+        <Text
+          style={{
+            fontSize: 20,
+            color: colors.titleBar.text,
+          }}>
+          Posera
+        </Text>
+        <View>{this.settingsButton()}</View>
+      </View>
+    );
+
+    return (
+      <SettingsContext.Provider
+        value={{
+          ...this.state,
+          setState: data => {
+            // Unclear why, but this cannot be this.setState directly
+            this.setState(data);
+          },
+        }}>
+        <View style={styles.container}>
+          {header}
+          <AppContainer
+            ref={nav => {
+              this.navigator = nav;
+            }}
+          />
+        </View>
+      </SettingsContext.Provider>
+    );
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
