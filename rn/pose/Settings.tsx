@@ -2,6 +2,7 @@ import * as React from 'react';
 import { StyleSheet, Text, View, Switch, Picker } from 'react-native';
 import { ModelName, Models } from './Pose';
 import { NavigationStackProp } from 'react-navigation-stack';
+import Slider from '@react-native-community/slider';
 
 export type Settings = {
   name: ModelName;
@@ -9,6 +10,10 @@ export type Settings = {
   useGpuDelegate: boolean;
   allowFp16Precision: boolean;
   numThreads: number;
+  videoRecordingDuration: number;
+  keypointScoreThreshold: number;
+  minMovedThreshold: number;
+  matchDistanceThreshold: number;
 };
 
 export const SettingsContext = React.createContext({});
@@ -16,7 +21,7 @@ export const SettingsContext = React.createContext({});
 export class SettingsScreen extends React.Component<{ navigation: NavigationStackProp }, {}> {
   static contextType = SettingsContext;
 
-  modelPicker = () => {
+  model = () => {
     return (
       <View style={styles.settingsItem}>
         <Text style={styles.settingsHeader}>Model</Text>
@@ -43,7 +48,7 @@ export class SettingsScreen extends React.Component<{ navigation: NavigationStac
     );
   };
 
-  numThreadsPicker = () => {
+  numThreads = () => {
     return (
       <View style={styles.settingsItem}>
         <Text style={styles.settingsHeader}>numThreads</Text>
@@ -58,17 +63,40 @@ export class SettingsScreen extends React.Component<{ navigation: NavigationStac
     );
   };
 
+  slider = (key: string, min: number, max: number, step: number, unit: string) => {
+    return (
+      <View style={styles.settingsItem}>
+        <Text style={styles.settingsHeader}>
+          {key} ({this.context[key]}
+          {unit})
+        </Text>
+        <Slider
+          style={{ marginTop: 10 }}
+          minimumValue={min}
+          maximumValue={max}
+          value={this.context[key]}
+          step={step}
+          onSlidingComplete={(v: number) => this.context.setState({ [key]: v })}
+        />
+      </View>
+    );
+  };
+
   render() {
     return (
       <View>
-        {this.modelPicker()}
+        {this.model()}
+        {this.slider('videoRecordingDuration', 5, 60, 5, 's')}
+        {this.slider('keypointScoreThreshold', 0, 1, 0.05, '')}
+        {this.slider('minMovedThreshold', 0, 10, 1, '%')}
+        {this.slider('matchDistanceThreshold', 0, 100, 5, '%')}
         <View style={styles.settingsItem}>
           <Text style={styles.settingsHeader}>Flags</Text>
           {this.switch('useNNAPI')}
           {this.switch('useGpuDelegate')}
           {this.switch('allowFp16Precision')}
         </View>
-        {this.numThreadsPicker()}
+        {this.numThreads()}
       </View>
     );
   }

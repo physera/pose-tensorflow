@@ -182,10 +182,6 @@ type Props = {
 };
 
 export default class CameraScreen extends React.Component<Props, State> {
-  static VIDEO_RECORDING_DURATION = 20;
-  static KEYPOINT_SCORE_THRESHOLD = 0.15;
-  static MATCH_DISTANCE_THRESHOLD = 0.25; // this is a fraction of modelInputSize
-  static MIN_MOVED_THRESHOLD = 0.02; // this is a fraction of modelInputSize
   static ALBUM_NAME = 'posera';
   static contextType = SettingsContext;
 
@@ -215,7 +211,7 @@ export default class CameraScreen extends React.Component<Props, State> {
         // we will encounter a paused camera view! But this is unlikely
         setTimeout(() => {
           this.cameraRef.pausePreview();
-        }, 200);
+        }, 500);
       }
     }
   }
@@ -235,8 +231,8 @@ export default class CameraScreen extends React.Component<Props, State> {
       const [keypoints, total] = matchingTargetKeypoints(
         this.state.targetPose,
         pose,
-        CameraScreen.KEYPOINT_SCORE_THRESHOLD,
-        CameraScreen.MATCH_DISTANCE_THRESHOLD,
+        this.context.keypointScoreThreshold,
+        this.context.matchDistanceThreshold / 100.0,
         getModel(this.context.name).inputSize
       );
       const success = keypoints.length == total;
@@ -299,7 +295,7 @@ export default class CameraScreen extends React.Component<Props, State> {
     const mergedPose = this.mergePose(
       this.state.pose,
       poses.length > 0 ? poses[0] : null,
-      CameraScreen.MIN_MOVED_THRESHOLD
+      this.context.minMovedThreshold / 100.0
     );
 
     if (mergedPose) {
@@ -350,7 +346,7 @@ export default class CameraScreen extends React.Component<Props, State> {
             top: 0,
             right: 0,
           }}>
-          <Timer seconds={CameraScreen.VIDEO_RECORDING_DURATION} />
+          <Timer seconds={this.context.videoRecordingDuration} />
         </Overlay>
       );
     }
@@ -412,7 +408,7 @@ export default class CameraScreen extends React.Component<Props, State> {
           imageDims={this.state.viewDims}
           modelInputSize={getModel(this.context.name).inputSize}
           rotation={this.state.rotation}
-          scoreThreshold={CameraScreen.KEYPOINT_SCORE_THRESHOLD}
+          scoreThreshold={this.context.keypointScoreThreshold}
           highlightParts={partsToHighlight}
           {...displayOptions}
         />
@@ -466,7 +462,6 @@ export default class CameraScreen extends React.Component<Props, State> {
 
     return this.debugTable({
       ...timersData,
-      ...this.context,
       ...getModel(this.context.name),
     });
   };
@@ -511,7 +506,7 @@ export default class CameraScreen extends React.Component<Props, State> {
 
     const path = TemporaryDirectoryPath + `/posera-${Date.now()}.mp4`;
     const { uri } = await this.cameraRef.recordAsync({
-      maxDuration: CameraScreen.VIDEO_RECORDING_DURATION,
+      maxDuration: this.context.videoRecordingDuration,
       quality: RNCamera.Constants.VideoQuality['4:3'],
       mute: true,
       path,

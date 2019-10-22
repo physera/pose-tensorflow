@@ -56,7 +56,12 @@ const settingsStack = createStackNavigator({
       header: null,
     },
   },
-  Settings: SettingsScreen,
+  Settings: {
+    screen: SettingsScreen,
+    navigationOptions: {
+      title: 'Settings',
+    },
+  },
 });
 
 const AppContainer = createAppContainer(settingsStack);
@@ -69,6 +74,10 @@ export default class App extends React.Component<{}, Settings> {
     allowFp16Precision: false,
     numThreads: -1,
     name: 'posenet337',
+    videoRecordingDuration: 20,
+    keypointScoreThreshold: 0.15,
+    minMovedThreshold: 2, // fraction of modelInputSize
+    matchDistanceThreshold: 25, // fraction of modelInputSize
   };
   navigator = null;
 
