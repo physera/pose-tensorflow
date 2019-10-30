@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, Platform, Image, Dimensions } from 'react
 import ImagePicker from 'react-native-image-picker';
 import Tflite from 'tflite-react-native';
 import { Pose, decodePoses, PoseT, Dims, getModel } from './Pose';
-import Overlay from './Overlay';
+import { Overlay } from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { ImageScreen as colors } from './Colors';
 import { NavigationTabProp } from 'react-navigation-tabs';
@@ -53,7 +53,7 @@ type State = {
   currentModelName: string | null;
 };
 
-export default class ImageScreen extends React.Component<Props, State> {
+export default class ImageScreen extends React.PureComponent<Props, State> {
   state = { msg: null, image: null, poses: null, currentModelName: null };
   static contextType = SettingsContext;
 

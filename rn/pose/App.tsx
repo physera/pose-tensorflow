@@ -39,7 +39,7 @@ const tabs = createMaterialTopTabNavigator(
     },
   },
   {
-    initialRouteName: 'Image',
+    initialRouteName: 'Live',
     lazy: true,
     tabBarOptions: {
       showLabel: true,
@@ -66,18 +66,20 @@ const settingsStack = createStackNavigator({
 
 const AppContainer = createAppContainer(settingsStack);
 
-export default class App extends React.Component<{}, Settings> {
+export default class App extends React.PureComponent<{}, Settings> {
   static router = settingsStack.router;
   state: Settings = {
     useNNAPI: false,
     useGpuDelegate: true,
     allowFp16Precision: false,
+    showBoundingBox: false,
     numThreads: -1,
-    name: 'posenet337',
+    name: 'posenet257',
     videoRecordingDuration: 20,
     keypointScoreThreshold: 0.15,
     minMovedThreshold: 2, // fraction of modelInputSize
     matchDistanceThreshold: 25, // fraction of modelInputSize
+    joint: null,
   };
   navigator = null;
 

@@ -36,7 +36,7 @@ export const Pose = {
   },
 };
 
-export const Timer = {
+export const Overlay = {
   text: '#f354b4',
   border: '#f354b4',
   background: '#dbe3f6',

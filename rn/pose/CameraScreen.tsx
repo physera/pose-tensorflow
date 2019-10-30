@@ -12,15 +12,18 @@ import {
   matchingTargetKeypoints,
   indexPoseByPart,
   keypointDistance,
+  jointAngle,
 } from './Pose';
 import { SettingsContext } from './Settings';
 import Timer from './Timer';
-import Overlay from './Overlay';
+import { Overlay, BigText } from './Overlay';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as MediaLibrary from 'expo-media-library';
 import { TemporaryDirectoryPath } from 'react-native-fs';
 import { CameraScreen as colors } from './Colors';
 import { NavigationTabProp } from 'react-navigation-tabs';
+import { ifDiff } from './Perf';
+import { withNavigationFocus } from 'react-navigation';
 
 type CameraViewToolbarProps = {
   disabled: boolean;
@@ -28,7 +31,7 @@ type CameraViewToolbarProps = {
   onFlip: () => void;
 };
 
-class CameraViewToolbar extends React.Component<CameraViewToolbarProps, {}> {
+class CameraViewToolbar extends React.PureComponent<CameraViewToolbarProps, {}> {
   static defaultProps = { disabled: false };
   flipCamera = () => {
     return (
@@ -87,7 +90,7 @@ type CameraViewState = {
   zoom: number;
 };
 
-class CameraView extends React.Component<CameraViewProps, CameraViewState> {
+class CameraView extends React.PureComponent<CameraViewProps, CameraViewState> {
   static defaultProps = { isRecording: false };
   state: CameraViewState = {
     facingFront: true,
@@ -174,6 +177,7 @@ type State = {
   viewDims: Dims | null;
   rotation: number;
   timers: { [key in Timers]?: number } | null;
+  jointAngle: number | null;
 };
 
 type Props = {
@@ -181,7 +185,7 @@ type Props = {
   isFocused: boolean;
 };
 
-export default class CameraScreen extends React.Component<Props, State> {
+class CameraScreen extends React.PureComponent<Props, State> {
   static ALBUM_NAME = 'posera';
   static contextType = SettingsContext;
 
@@ -194,6 +198,7 @@ export default class CameraScreen extends React.Component<Props, State> {
     viewDims: null,
     timers: null,
     rotation: 0,
+    jointAngle: null,
   };
   cameraRef: any;
 
@@ -240,6 +245,13 @@ export default class CameraScreen extends React.Component<Props, State> {
         await this.beginVideoRecording();
       }
       this.setState({ targetMatch: { ...this.state.targetMatch, keypoints, total, success } });
+    }
+  };
+
+  maybeComputeJointAngle = (pose: PoseT): void => {
+    if (this.context.joint !== null) {
+      const angle = jointAngle(this.context.joint, pose, this.context.keypointScoreThreshold);
+      this.setState({ jointAngle: angle });
     }
   };
 
@@ -300,14 +312,15 @@ export default class CameraScreen extends React.Component<Props, State> {
 
     if (mergedPose) {
       this.maybeCaptureTargetPose(mergedPose);
+      this.maybeComputeJointAngle(mergedPose);
       await this.maybeCompareToTargetPose(mergedPose);
     }
     this.setState({
-      pose: mergedPose,
-      viewDims: {
+      pose: ifDiff(this.state.pose, mergedPose),
+      viewDims: ifDiff(this.state.viewDims, {
         width: width,
         height: height,
-      },
+      }),
       rotation: evt.dimensions.deviceRotation,
       timers: {
         ...this.state.timers,
@@ -347,6 +360,20 @@ export default class CameraScreen extends React.Component<Props, State> {
             right: 0,
           }}>
           <Timer seconds={this.context.videoRecordingDuration} />
+        </Overlay>
+      );
+    }
+  };
+
+  jointAngle = () => {
+    if (this.state.jointAngle) {
+      return (
+        <Overlay
+          style={{
+            top: 0,
+            left: 0,
+          }}>
+          <BigText>{this.state.jointAngle}</BigText>
         </Overlay>
       );
     }
@@ -462,6 +489,7 @@ export default class CameraScreen extends React.Component<Props, State> {
 
     return this.debugTable({
       ...timersData,
+      name: this.context.name,
       ...getModel(this.context.name),
     });
   };
@@ -563,7 +591,11 @@ export default class CameraScreen extends React.Component<Props, State> {
 
   pose = () => {
     return !this.state.isRecordingVideo && this.state.pose && this.state.viewDims
-      ? this.poseOverlay({ pose: this.state.pose, showBoundingBox: false, opacity: 0.8 })
+      ? this.poseOverlay({
+          pose: this.state.pose,
+          showBoundingBox: this.context.showBoundingBox,
+          opacity: 0.8,
+        })
       : null;
   };
 
@@ -606,12 +638,15 @@ export default class CameraScreen extends React.Component<Props, State> {
           {this.captureTargetTimer()}
           {this.recordingVideoTimer()}
           {this.matchLevel()}
+          {this.jointAngle()}
         </CameraView>
         {this.debug()}
       </View>
     );
   }
 }
+
+export default withNavigationFocus(CameraScreen);
 
 const styles = StyleSheet.create({
   container: {

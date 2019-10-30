@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { Text, View } from 'react-native';
-import { Timer as colors } from './Colors';
+import { BigText } from './Overlay';
 
 type State = {
   secondsLeft: number;
@@ -12,7 +11,7 @@ type Props = {
   onComplete?: (...args: any[]) => void;
 };
 
-export default class Timer extends React.Component<Props, State> {
+export default class Timer extends React.PureComponent<Props, State> {
   static defaultProps = { seconds: 5 };
 
   constructor(props: Props) {
@@ -39,11 +38,6 @@ export default class Timer extends React.Component<Props, State> {
     if (this.state.secondsLeft <= 0) {
       return null;
     }
-    return (
-      <View
-        style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: colors.border }}>
-        <Text style={{ fontSize: 100, color: colors.text }}>{this.state.secondsLeft}</Text>
-      </View>
-    );
+    return <BigText>{this.state.secondsLeft}</BigText>;
   }
 }

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, Text, View, Switch, Picker } from 'react-native';
-import { ModelName, Models } from './Pose';
+import { ModelName, Models, PoseNetStructure } from './Pose';
 import { NavigationStackProp } from 'react-navigation-stack';
 import Slider from '@react-native-community/slider';
 
@@ -9,16 +9,18 @@ export type Settings = {
   useNNAPI: boolean;
   useGpuDelegate: boolean;
   allowFp16Precision: boolean;
+  showBoundingBox: boolean;
   numThreads: number;
   videoRecordingDuration: number;
   keypointScoreThreshold: number;
   minMovedThreshold: number;
   matchDistanceThreshold: number;
+  joint: string;
 };
 
 export const SettingsContext = React.createContext({});
 
-export class SettingsScreen extends React.Component<{ navigation: NavigationStackProp }, {}> {
+export class SettingsScreen extends React.PureComponent<{ navigation: NavigationStackProp }, {}> {
   static contextType = SettingsContext;
 
   model = () => {
@@ -30,6 +32,21 @@ export class SettingsScreen extends React.Component<{ navigation: NavigationStac
           onValueChange={itemValue => this.context.setState({ name: itemValue })}>
           {Object.keys(Models).map(m => {
             return <Picker.Item label={m} value={m} key={m} />;
+          })}
+        </Picker>
+      </View>
+    );
+  };
+
+  joint = () => {
+    return (
+      <View style={styles.settingsItem}>
+        <Text style={styles.settingsHeader}>Joint for angle</Text>
+        <Picker
+          selectedValue={this.context.joint}
+          onValueChange={itemValue => this.context.setState({ joint: itemValue })}>
+          {PoseNetStructure.Angles.map(a => {
+            return <Picker.Item label={`${a[1]}`} value={a} key={a[1]} />;
           })}
         </Picker>
       </View>
@@ -86,6 +103,7 @@ export class SettingsScreen extends React.Component<{ navigation: NavigationStac
     return (
       <View>
         {this.model()}
+        {this.joint()}
         {this.slider('videoRecordingDuration', 5, 60, 5, 's')}
         {this.slider('keypointScoreThreshold', 0, 1, 0.05, '')}
         {this.slider('minMovedThreshold', 0, 10, 1, '%')}
@@ -95,6 +113,7 @@ export class SettingsScreen extends React.Component<{ navigation: NavigationStac
           {this.switch('useNNAPI')}
           {this.switch('useGpuDelegate')}
           {this.switch('allowFp16Precision')}
+          {this.switch('showBoundingBox')}
         </View>
         {this.numThreads()}
       </View>

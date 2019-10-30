@@ -17,6 +17,7 @@
     "expo-media-library": "^7.0.0",
     "react": "16.8.6",
     "react-devtools": "^3.6.2",
+    "react-fast-compare": "^2.0.4",
     "react-native": "0.60.3",
     "react-native-camera": "file:.yalc/react-native-camera",
     "react-native-fs": "^2.14.1",

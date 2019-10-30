@@ -108,7 +108,16 @@ export const indexPoseByPart = (pose: PoseT): IndexedPoseT => {
   };
 };
 
-const PoseNetStructure = {
+type Part = string;
+type Limb = [Part, Part];
+type Angle = [Part, Part, Part];
+type Structure = {
+  Parts: Part[];
+  Skeleton: Limb[];
+  Angles: Angle[];
+};
+
+export const PoseNetStructure: Structure = {
   Parts: [
     'nose',
     'leftEye',
@@ -140,6 +149,16 @@ const PoseNetStructure = {
     ['rightHip', 'rightKnee'],
     ['leftKnee', 'leftAnkle'],
     ['rightKnee', 'rightAnkle'],
+  ],
+  Angles: [
+    ['leftHip', 'leftShoulder', 'leftElbow'],
+    ['rightHip', 'rightShoulder', 'rightElbow'],
+    ['rightShoulder', 'rightElbow', 'rightWrist'],
+    ['leftShoulder', 'leftElbow', 'leftWrist'],
+    ['leftKnee', 'leftHip', 'leftShoulder'],
+    ['rightKnee', 'rightHip', 'rightShoulder'],
+    ['leftAnkle', 'leftKnee', 'leftHip'],
+    ['rightAnkle', 'rightKnee', 'rightHip'],
   ],
 };
 
@@ -223,9 +242,11 @@ export const Pose: React.FunctionComponent<
   // - we first rotate the (usually square) modelInputSize box about its center, then scale it to the full view size
   const transform = `scale(${imageDims.width / modelInputSize},${imageDims.height /
     modelInputSize}) rotate(${360 - rotation}, ${modelInputSize / 2}, ${modelInputSize / 2}) `;
-
+  // console.log([modelInputSize, transform]);
   return (
     <Svg
+      key={`${modelInputSize}-svg`}
+      style={{ borderColor: 'red', borderWidth: 1 }}
       width={imageDims.width}
       height={imageDims.height}
       viewBox={`0 0 ${imageDims.width} ${imageDims.height}`}
@@ -353,4 +374,23 @@ export const matchingTargetKeypoints = (
 
 export const keypointDistance = (a: Keypoint, b: Keypoint): number => {
   return Math.sqrt((b.position.y - a.position.y) ** 2 + (b.position.x - a.position.x) ** 2);
+};
+
+export const jointAngle = (angle: Angle, pose: PoseT, scoreThreshold: number): number | null => {
+  const [left, pivot, right] = angle;
+  const indexedPose = indexPoseByPart(filterPoseByScore(pose, scoreThreshold));
+
+  const [leftKp, pivotKp, rightKp] = [
+    indexedPose.keypoints[left],
+    indexedPose.keypoints[pivot],
+    indexedPose.keypoints[right],
+  ];
+  if (!leftKp || !pivotKp || !rightKp) {
+    return null;
+  }
+
+  const a = keypointDistance(leftKp, pivotKp);
+  const b = keypointDistance(leftKp, rightKp);
+  const c = keypointDistance(pivotKp, rightKp);
+  return Math.round((180 * Math.acos((a ** 2 + c ** 2 - b ** 2) / (2 * a * c))) / Math.PI);
 };
