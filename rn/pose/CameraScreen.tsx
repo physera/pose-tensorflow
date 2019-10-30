@@ -98,6 +98,8 @@ class CameraView extends React.PureComponent<CameraViewProps, CameraViewState> {
   };
 
   camera = () => {
+    // This is so that the view reinitializes when parameters are changed
+    const key = JSON.stringify(this.props.modelParams);
     // autoFocusPointOfInterest: note that coordinates are in landscape with home to right
     return (
       <View
@@ -106,6 +108,7 @@ class CameraView extends React.PureComponent<CameraViewProps, CameraViewState> {
           height: Dimensions.get('window').width * (4.0 / 3.0),
         }}>
         <RNCamera
+          key={key}
           ref={this.props.onCameraRef}
           style={{
             flex: 1,
