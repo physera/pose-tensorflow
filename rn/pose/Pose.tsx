@@ -288,7 +288,6 @@ export const Pose: React.FunctionComponent<
   // console.log([modelInputSize, transform]);
   return (
     <Svg
-      style={{ borderWidth: 2, borderColor: 'red' }}
       width={imageDims.width}
       height={imageDims.height}
       viewBox={`0 0 ${imageDims.width} ${imageDims.height}`}

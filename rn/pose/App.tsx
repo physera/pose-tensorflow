@@ -74,7 +74,7 @@ export default class App extends React.PureComponent<{}, Settings> {
     allowFp16Precision: false,
     showBoundingBox: false,
     numThreads: -1,
-    name: 'hourglass',
+    name: 'posenet337',
     videoRecordingDuration: 20,
     keypointScoreThreshold: 0.15,
     minMovedThreshold: 4, // fraction of modelInputSize
@@ -86,6 +86,7 @@ export default class App extends React.PureComponent<{}, Settings> {
   settingsButton = () => {
     return (
       <Icon.Button
+        size={50}
         name="settings-applications"
         onPress={() =>
           this.navigator.dispatch(NavigationActions.navigate({ routeName: 'Settings' }))
