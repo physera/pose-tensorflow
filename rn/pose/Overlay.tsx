@@ -25,7 +25,7 @@ export const BigText: React.FunctionComponent<ViewProps & { textStyle?: any }> =
         { backgroundColor: colors.background, borderWidth: 2, borderColor: colors.border },
       ]}
       {...otherProps}>
-      <Text style={[textStyle, { fontSize: 100, color: colors.text }]}>{children}</Text>
+      <Text style={[textStyle, { fontSize: 70, color: colors.text }]}>{children}</Text>
     </View>
   );
 };

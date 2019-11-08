@@ -8,5 +8,5 @@ apply from: file('../node_modules/react-native-unimodules/gradle.groovy'); inclu
 include ':react-native-bridgeutils'
 project(':react-native-bridgeutils').projectDir=new File('/home/venky/dev/react-native-bridgeutils/android')
 
-include ':react-native-posenet'
-project(':react-native-posenet').projectDir=new File('/home/venky/dev/react-native-posenet/android')
+include ':react-native-pose-decoding'
+project(':react-native-pose-decoding').projectDir=new File('/home/venky/dev/react-native-pose-decoding/android')

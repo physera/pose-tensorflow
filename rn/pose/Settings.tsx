@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, Text, View, Switch, Picker } from 'react-native';
-import { ModelName, Models, PoseNetStructure } from './Pose';
+import { ModelName, Models } from './Pose';
 import { NavigationStackProp } from 'react-navigation-stack';
 import Slider from '@react-native-community/slider';
 
@@ -19,6 +19,17 @@ export type Settings = {
 };
 
 export const SettingsContext = React.createContext({});
+
+const Angles = [
+  ['leftHip', 'leftShoulder', 'leftElbow'],
+  ['rightHip', 'rightShoulder', 'rightElbow'],
+  ['rightShoulder', 'rightElbow', 'rightWrist'],
+  ['leftShoulder', 'leftElbow', 'leftWrist'],
+  ['leftKnee', 'leftHip', 'leftShoulder'],
+  ['rightKnee', 'rightHip', 'rightShoulder'],
+  ['leftAnkle', 'leftKnee', 'leftHip'],
+  ['rightAnkle', 'rightKnee', 'rightHip'],
+];
 
 export class SettingsScreen extends React.PureComponent<{ navigation: NavigationStackProp }, {}> {
   static contextType = SettingsContext;
@@ -45,7 +56,7 @@ export class SettingsScreen extends React.PureComponent<{ navigation: Navigation
         <Picker
           selectedValue={this.context.joint}
           onValueChange={itemValue => this.context.setState({ joint: itemValue })}>
-          {PoseNetStructure.Angles.map(a => {
+          {Angles.map(a => {
             return <Picker.Item label={`${a[1]}`} value={a} key={a[1]} />;
           })}
         </Picker>

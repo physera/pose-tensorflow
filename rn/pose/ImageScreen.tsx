@@ -139,7 +139,7 @@ export default class ImageScreen extends React.PureComponent<Props, State> {
       <Pose
         pose={this.state.poses[0]}
         imageDims={scaledImageDims}
-        modelInputSize={getModel(this.context.name).inputSize}
+        modelName={this.context.name}
         rotation={0}
         scoreThreshold={0.25}
       />

@@ -74,10 +74,10 @@ export default class App extends React.PureComponent<{}, Settings> {
     allowFp16Precision: false,
     showBoundingBox: false,
     numThreads: -1,
-    name: 'posenet257',
+    name: 'hourglass',
     videoRecordingDuration: 20,
     keypointScoreThreshold: 0.15,
-    minMovedThreshold: 2, // fraction of modelInputSize
+    minMovedThreshold: 4, // fraction of modelInputSize
     matchDistanceThreshold: 25, // fraction of modelInputSize
     joint: null,
   };

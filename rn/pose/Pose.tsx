@@ -35,63 +35,159 @@ type InputResolution =
   | 801
   | 1217;
 
+type ModelType = 'posenet' | 'cpm' | 'hourglass';
 type Model = {
   file: string;
   inputSize: InputResolution;
-  outputStride: OutputStride;
-  mean: number;
-  std: number;
-  type: 'posenet' | 'cpm' | 'hourglass';
+  outputStride?: OutputStride;
+  type: ModelType;
 };
 
-const commonModelParams = {
-  mean: 128.0,
-  std: 128.0,
+type Part = string;
+type Limb = [Part, Part];
+type Structure = {
+  Parts: Part[];
+  Skeleton: Limb[];
 };
 
+const ModelStructure: { [type in ModelType]: Structure } = {
+  posenet: {
+    Parts: [
+      'nose',
+      'leftEye',
+      'rightEye',
+      'leftEar',
+      'rightEar',
+      'leftShoulder',
+      'rightShoulder',
+      'leftElbow',
+      'rightElbow',
+      'leftWrist',
+      'rightWrist',
+      'leftHip',
+      'rightHip',
+      'leftKnee',
+      'rightKnee',
+      'leftAnkle',
+      'rightAnkle',
+    ],
+    Skeleton: [
+      ['leftShoulder', 'rightShoulder'],
+      ['leftShoulder', 'leftElbow'],
+      ['rightShoulder', 'rightElbow'],
+      ['leftElbow', 'leftWrist'],
+      ['rightElbow', 'rightWrist'],
+      ['leftShoulder', 'leftHip'],
+      ['rightShoulder', 'rightHip'],
+      ['leftHip', 'leftKnee'],
+      ['rightHip', 'rightKnee'],
+      ['leftKnee', 'leftAnkle'],
+      ['rightKnee', 'rightAnkle'],
+    ],
+  },
+  cpm: {
+    Parts: [
+      'top',
+      'neck',
+      'rightShoulder',
+      'rightElbow',
+      'rightWrist',
+      'leftShoulder',
+      'leftElbow',
+      'leftWrist',
+      'rightHip',
+      'rightKnee',
+      'rightAnkle',
+      'leftHip',
+      'leftKnee',
+      'leftAnkle',
+    ],
+    Skeleton: [
+      ['top', 'neck'],
+      ['leftShoulder', 'neck'],
+      ['neck', 'rightShoulder'],
+      ['leftShoulder', 'leftElbow'],
+      ['rightShoulder', 'rightElbow'],
+      ['leftElbow', 'leftWrist'],
+      ['rightElbow', 'rightWrist'],
+      ['leftShoulder', 'leftHip'],
+      ['rightShoulder', 'rightHip'],
+      ['leftHip', 'leftKnee'],
+      ['rightHip', 'rightKnee'],
+      ['leftKnee', 'leftAnkle'],
+      ['rightKnee', 'rightAnkle'],
+    ],
+  },
+  hourglass: {
+    Parts: [
+      'top',
+      'neck',
+      'rightShoulder',
+      'rightElbow',
+      'rightWrist',
+      'leftShoulder',
+      'leftElbow',
+      'leftWrist',
+      'rightHip',
+      'rightKnee',
+      'rightAnkle',
+      'leftHip',
+      'leftKnee',
+      'leftAnkle',
+    ],
+    Skeleton: [
+      ['top', 'neck'],
+      ['leftShoulder', 'neck'],
+      ['neck', 'rightShoulder'],
+      ['leftShoulder', 'leftElbow'],
+      ['rightShoulder', 'rightElbow'],
+      ['leftElbow', 'leftWrist'],
+      ['rightElbow', 'rightWrist'],
+      ['leftShoulder', 'leftHip'],
+      ['rightShoulder', 'rightHip'],
+      ['leftHip', 'leftKnee'],
+      ['rightHip', 'rightKnee'],
+      ['leftKnee', 'leftAnkle'],
+      ['rightKnee', 'rightAnkle'],
+    ],
+  },
+};
 export type ModelName = 'posenet337' | 'cpm' | 'hourglass' | 'posenet257' | 'posenet353';
-export const Models: Record<ModelName, Model> = {
+export const Models: { [modelName in ModelName]?: Model } = {
   posenet337: {
     file: 'posenet_mv1_075_float_from_checkpoints.tflite',
     inputSize: 337,
     outputStride: 16,
     type: 'posenet',
-    ...commonModelParams,
   },
   cpm: {
     file: 'edvardhua_cpm.tflite',
     inputSize: 192,
-    outputStride: 16, // unknown. output is 96x96
     type: 'cpm',
-    ...commonModelParams,
   },
   hourglass: {
     file: 'edvardhua_hourglass.tflite',
     inputSize: 192,
-    outputStride: 16, // unknown. output is 48x48
     type: 'hourglass',
-    ...commonModelParams,
   },
   posenet257: {
     file: 'posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite',
     inputSize: 257,
     outputStride: 32,
     type: 'posenet',
-    ...commonModelParams,
   },
   // DOES NOT WORK: java.lang.IllegalArgumentException: Cannot convert
   // between a TensorFlowLite buffer with 1088652 bytes and a
   // ByteBuffer with 1495308 bytes.  this one works on the gpu?
-  posenet353: {
-    file: 'multi_person_mobilenet_v1_075_float.tflite',
-    inputSize: 353, // whoops this is actually 353x257
-    outputStride: 16,
-    type: 'posenet',
-    ...commonModelParams,
-  },
+  // posenet353: {
+  //   file: 'multi_person_mobilenet_v1_075_float.tflite',
+  //   inputSize: 353, // whoops this is actually 353x257
+  //   outputStride: 16,
+  //   type: 'posenet',
+  // },
 };
 
-export const getModel = (name: ModelName): Model => {
+export const getModel = (name: string): Model => {
   return Models[name];
 };
 
@@ -108,60 +204,6 @@ export const indexPoseByPart = (pose: PoseT): IndexedPoseT => {
   };
 };
 
-type Part = string;
-type Limb = [Part, Part];
-type Angle = [Part, Part, Part];
-type Structure = {
-  Parts: Part[];
-  Skeleton: Limb[];
-  Angles: Angle[];
-};
-
-export const PoseNetStructure: Structure = {
-  Parts: [
-    'nose',
-    'leftEye',
-    'rightEye',
-    'leftEar',
-    'rightEar',
-    'leftShoulder',
-    'rightShoulder',
-    'leftElbow',
-    'rightElbow',
-    'leftWrist',
-    'rightWrist',
-    'leftHip',
-    'rightHip',
-    'leftKnee',
-    'rightKnee',
-    'leftAnkle',
-    'rightAnkle',
-  ],
-  Skeleton: [
-    ['leftShoulder', 'rightShoulder'],
-    ['leftShoulder', 'leftElbow'],
-    ['rightShoulder', 'rightElbow'],
-    ['leftElbow', 'leftWrist'],
-    ['rightElbow', 'rightWrist'],
-    ['leftShoulder', 'leftHip'],
-    ['rightShoulder', 'rightHip'],
-    ['leftHip', 'leftKnee'],
-    ['rightHip', 'rightKnee'],
-    ['leftKnee', 'leftAnkle'],
-    ['rightKnee', 'rightAnkle'],
-  ],
-  Angles: [
-    ['leftHip', 'leftShoulder', 'leftElbow'],
-    ['rightHip', 'rightShoulder', 'rightElbow'],
-    ['rightShoulder', 'rightElbow', 'rightWrist'],
-    ['leftShoulder', 'leftElbow', 'leftWrist'],
-    ['leftKnee', 'leftHip', 'leftShoulder'],
-    ['rightKnee', 'rightHip', 'rightShoulder'],
-    ['leftAnkle', 'leftKnee', 'leftHip'],
-    ['rightAnkle', 'rightKnee', 'rightHip'],
-  ],
-};
-
 export type PoseDisplayOptions = {
   scoreThreshold?: number;
   showBoundingBox?: boolean;
@@ -173,14 +215,14 @@ export const Pose: React.FunctionComponent<
   {
     pose: PoseT;
     imageDims: Dims; // the image for which pose is inferred
-    modelInputSize: number;
+    modelName: string;
     rotation: number;
     highlightParts?: { [k: string]: boolean };
   } & PoseDisplayOptions
 > = ({
   pose,
   imageDims,
-  modelInputSize,
+  modelName,
   rotation,
   scoreThreshold = 0.25,
   showBoundingBox = false,
@@ -188,6 +230,7 @@ export const Pose: React.FunctionComponent<
   poseColor = colors.defaultPoseColor,
   highlightParts = true,
 }) => {
+  const modelInputSize = Models[modelName].inputSize;
   const indexedPose = indexPoseByPart(filterPoseByScore(pose, scoreThreshold));
   const strokeWidth = modelInputSize / 50;
   const radius = modelInputSize / 80;
@@ -203,7 +246,7 @@ export const Pose: React.FunctionComponent<
     );
   });
 
-  const lines = PoseNetStructure.Skeleton.map(([from_part, to_part]) => {
+  const lines = ModelStructure[Models[modelName].type].Skeleton.map(([from_part, to_part]) => {
     const from_kp = indexedPose.keypoints[from_part];
     const to_kp = indexedPose.keypoints[to_part];
     if (from_kp && to_kp) {
@@ -245,6 +288,7 @@ export const Pose: React.FunctionComponent<
   // console.log([modelInputSize, transform]);
   return (
     <Svg
+      style={{ borderWidth: 2, borderColor: 'red' }}
       width={imageDims.width}
       height={imageDims.height}
       viewBox={`0 0 ${imageDims.width} ${imageDims.height}`}
@@ -374,7 +418,11 @@ export const keypointDistance = (a: Keypoint, b: Keypoint): number => {
   return Math.sqrt((b.position.y - a.position.y) ** 2 + (b.position.x - a.position.x) ** 2);
 };
 
-export const jointAngle = (angle: Angle, pose: PoseT, scoreThreshold: number): number | null => {
+export const jointAngle = (
+  angle: [Part, Part, Part],
+  pose: PoseT,
+  scoreThreshold: number
+): number | null => {
   const [left, pivot, right] = angle;
   const indexedPose = indexPoseByPart(filterPoseByScore(pose, scoreThreshold));
 
