@@ -1,4 +1,4 @@
-package com.pose;
+package com.posera;
 
 import com.facebook.react.ReactActivity;
 

@@ -35,12 +35,12 @@ android_library(
 
 android_build_config(
     name = "build_config",
-    package = "com.pose",
+    package = "com.posera",
 )
 
 android_resource(
     name = "res",
-    package = "com.pose",
+    package = "com.posera",
     res = "src/main/res",
 )
 

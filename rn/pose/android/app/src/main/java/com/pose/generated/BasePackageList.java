@@ -1,4 +1,4 @@
-package com.pose.generated;
+package com.posera.generated;
 
 import java.util.Arrays;
 import java.util.List;
