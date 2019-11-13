@@ -1,0 +1,70 @@
+#+TITLE:     React Native Pose Detection prototype app (Posera)
+#+AUTHOR:    Venky Iyer
+
+The code should be fairly straightforward to follow, but I will list
+some known problems, future improvements etc here.
+
+* Dev notes
+
+  - I run =yarn react-native start --reset-cache= in one terminal
+  - =yarn android= from another will build and push the app to my
+    phone or emulator, depending on what is connected over ADB.
+  - I used [[https://github.com/whitecolor/yalc][yalc]] to make the *local* =react-native-camera= module
+    visible to my =pose-tensorflow/rn/pose= yarn install. (=yalc
+    push= from the =react-native-camera= folder to update).
+  - See the note about "Transitive dependencies" below -- the native
+    support libraries need to be checked out, and paths updated in
+    =settings.gradle=
+  - I did most of the development on my phone (Pixel 3a) since we
+    need the camera/GPU
+  - I developed most of the code in emacs, going back and forth with
+    Android Studio for support with syntax errors, gradle settings,
+    occasionally using the debugger
+  - =adb shell input "RR"= will reload the app
+  - =adb shell keyevent 82= will open the debug menu
+  - =adb shell "pm uninstall com.posera"= will uninstall the app
+  - =adb reverse tcp:8081 tcp:8081= will fix the tunnelling should
+    the phone have been disconnected
+  - =adb logcat -s ReactNative:V AndroidRunTime:V= will show debug
+    logs and crashes
+  - Some code in the app is gated to =if (_DEV_)=, so it will only
+    function in RN dev mode.
+
+* Support libraries
+
+  - =react-native-camera= is the main support library that we rely on
+    to implement the camera API, and through that native pose
+    decoding. This in turn relies upon =react-native-pose-decoding=
+    and =react-native-bridgeutils=
+  - =tflite-react-native= for pose detection on static images, but
+    there's no reason we can't use =react-native-pose-decoding=
+    directly for this (and it will give us access to the CPM/Hourglass
+    decoder)
+  - =react-native-svg= to draw the poses and scale/rotate them
+  - =react-navigation= for tabs, stacks
+  - Tensorflow.js's posenet JS library
+
+* Future improvements/Warts
+
+** Transitive dependencies
+
+   For some reason, the =react-native-pose-decoding= and
+    =react-native-bridgeutils= libraries which are technically only
+    transitive dependencies of =react-native-camera= have to be
+    included as dependencies of the Posera app for the build process
+    to pull them in. There may be some clever Gradle configuration
+    that makes this work correctly. *Currently, paths to checkouts of
+    these modules are hard coded in =settings.gradle=*.
+
+** Plugin framework for react-native-camera
+
+   =react-native-camera= is an active library, so we should endeavor
+    to not diverge from it. Unfortunately it does not have a clean
+    plugin architecture such that we can say "process the preview
+    frame through this addon library". I think this is doable though,
+    and would it make it easier to stay with upstream.
+
+** Upgrading react-native
+
+   For some reason this continues to be a pain. [[https://github.com/react-native-community/cli/issues/230#issuecomment-546098190][Here]] is a relevant
+   github issue and potential approach.
