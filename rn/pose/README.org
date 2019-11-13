@@ -29,6 +29,7 @@ some known problems, future improvements etc here.
     logs and crashes
   - Some code in the app is gated to =if (_DEV_)=, so it will only
     function in RN dev mode.
+  - Model files are in =android/app/src/main/assets=
 
 * Support libraries
 
