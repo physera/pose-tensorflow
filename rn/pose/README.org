@@ -69,3 +69,12 @@ some known problems, future improvements etc here.
 
    For some reason this continues to be a pain. [[https://github.com/react-native-community/cli/issues/230#issuecomment-546098190][Here]] is a relevant
    github issue and potential approach.
+
+** App size
+
+   apk size is currently huge - 137 MB. I have not spent a lot of time
+   digging into this, but I think it can be drastically reduced -- the
+   models are themselves only 2-5 MB. I suspect most of this is
+   because we're bundling opencv with the CPM/Hourglass decoder, and
+   that's only to get a Gaussian Blur. Should be relatively easy to
+   pare down.
