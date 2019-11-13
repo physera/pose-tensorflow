@@ -20,14 +20,14 @@ some known problems, future improvements etc here.
   - I developed most of the code in emacs, going back and forth with
     Android Studio for support with syntax errors, gradle settings,
     occasionally using the debugger
-  - ~adb shell input "RR"~ will reload the app
+  - ~adb shell input "RR" ~ will reload the app
   - ~adb shell keyevent 82~ will open the debug menu
-  - ~adb shell "pm uninstall com.posera"~ will uninstall the app
+  - ~adb shell "pm uninstall com.posera" ~ will uninstall the app
   - ~adb reverse tcp:8081 tcp:8081~ will fix the tunnelling should
     the phone have been disconnected
   - ~adb logcat -s ReactNative:V AndroidRunTime:V~ will show debug
     logs and crashes
-  - Some code in the app is gated to ~if (_DEV_)~, so it will only
+  - Some code in the app is gated to ~if (_DEV_) ~, so it will only
     function in RN dev mode.
 
 * Support libraries
@@ -54,7 +54,7 @@ some known problems, future improvements etc here.
     included as dependencies of the Posera app for the build process
     to pull them in. There may be some clever Gradle configuration
     that makes this work correctly. *Currently, paths to checkouts of
-    these modules are hard coded in ~settings.gradle~*.
+    these modules are hard coded in ~settings.gradle~ *.
 
 ** Plugin framework for react-native-camera
 
